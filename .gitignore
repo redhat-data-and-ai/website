@@ -18,9 +18,16 @@ Gemfile.lock
 modules/.vale.ini
 .vale.ini
 
+# macOS system files
+.DS_Store
+**/.DS_Store
+
 # Personal workflow files (not for public repo)
 PRE-LAUNCH_CHECKLIST.md
 NEXT_STEPS.md
 SECURITY_AUDIT.md
 MIGRATION_JOURNEY.md
 TAXONOMY_PROPOSAL.md
+GO_LIVE_STEPS.md
+LOGO_GENERATION_PROMPT.md
+PLACEHOLDER_TRACKING.md
