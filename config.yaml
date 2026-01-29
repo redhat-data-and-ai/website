@@ -4,6 +4,8 @@ title: AI Templates
 theme: "patternfly"
 summaryLength: 20
 timeout: 300
+# Google Analytics (GA4) - Comment out or remove to disable tracking
+googleAnalytics: G-DPLE5X1QRQ
 pagination:
   pagerSize: 6
 params:
