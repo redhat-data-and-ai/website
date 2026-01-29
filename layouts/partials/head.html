@@ -20,5 +20,13 @@
   <title>{{ if eq .IsHome false }}{{ .Title }} | {{ end }}{{ .Site.Title }}</title>
   
   <!-- Google Analytics (GA4) -->
-  {{ partial "google-analytics.html" . }}
+  {{ if not hugo.IsServer }}
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-DPLE5X1QRQ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-DPLE5X1QRQ');
+  </script>
+  {{ end }}
 </head>
