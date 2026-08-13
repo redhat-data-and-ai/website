@@ -22,6 +22,32 @@ Before you begin, ensure you have:
 - **UV package manager** ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
 - **Git access** to clone the template repository
 - **Basic understanding** of Python and API development
+- **Make** — pre-installed on macOS/Linux; on Windows use `choco install make` or `scoop install make`
+
+## Quick run (template as-is)
+
+To run **template-mcp-server** without transforming it yet:
+
+```bash
+git clone https://github.com/redhat-data-and-ai/template-mcp-server.git
+cd template-mcp-server
+make install   # creates .venv and installs deps — required before make local
+make local     # starts server on http://localhost:5001
+```
+
+Verify in another terminal:
+
+```bash
+curl http://localhost:5001/health
+```
+
+The MCP JSON-RPC endpoint is `http://localhost:5001/mcp`. When wiring [template-agent](/templates/agent/quick-start/), use that URL in `config/agent/mcp.json`.
+
+To stop the server, press Ctrl+C in the terminal running `make local`.
+
+{{< tip >}}
+**Full stack:** MCP `:5001` → agent `:5002` → UI `:5173`. See the [Agentic AI Workshop](/guides/agentic-ai-workshop/) or [Stack Architecture](/reference/architecture/).
+{{< /tip >}}
 
 ## Step 1: Prepare Your Environment
 
@@ -330,17 +356,21 @@ def _register_mcp_tools(self) -> None:
 Run your MCP server and test your new tool:
 
 ```bash
-# Start the server
-python -m template_mcp_server.src.main
+make install   # if you haven't already
+make local     # or: python -m template_mcp_server.src.main (with .venv active)
+```
 
-# In another terminal, test your tool
+In another terminal:
+
+```bash
+curl http://localhost:5001/health
 python examples/fastmcp_client.py
 ```
 
 The server will be available at:
 
-- **MCP Server**: `http://localhost:3000/mcp`
-- **Health Check**: `http://localhost:3000/health`
+- **MCP endpoint**: `http://localhost:5001/mcp`
+- **Health check**: `http://localhost:5001/health`
 
 ### Quick Test Your Tool
 
@@ -392,8 +422,7 @@ def _register_mcp_tools(self) -> None:
 Test that your server still works with only your domain tools:
 
 ```bash
-# Start the server
-python -m template_mcp_server.src.main
+make local
 
 # Should only show your tools now ✅
 ```

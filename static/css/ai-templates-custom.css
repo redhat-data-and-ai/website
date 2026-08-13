@@ -164,3 +164,13 @@ body {
 .pf-c-content table td:last-child {
   border-right: none;
 }
+
+/* Figure captions below diagrams */
+.pf-c-content .figure-caption {
+  font-size: 0.8125rem !important;
+  color: #6a6e73 !important;
+  text-align: center;
+  margin-top: 0.5rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}

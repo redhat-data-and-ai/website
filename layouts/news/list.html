@@ -1,0 +1,30 @@
+{{ define "main" }}
+  <div class="pf-c-page__sidebar">
+    <div class="pf-c-page__sidebar-body">
+      {{ partial "menu-news.html" . }}
+    </div>
+  </div>
+  <main class="pf-c-page__main" tabindex="0">
+    <section class="pf-c-page__main-section pf-m-fill">
+      <div class="sidebar-toggle-container">
+        {{ partial "sidebar-toggle.html" . }}
+      </div>
+      <div class="pf-u-display-flex">
+        <div class="pf-c-content min-height">
+          <h1>{{ .Title }}</h1>
+          {{ if .Description }}
+          <p class="page-abstract">{{ .Description }}</p>
+          {{ end }}
+          {{ .Content }}
+          <div class="pf-u-mt-xl">
+            {{ $news := where .Site.RegularPages "Section" "news" }}
+            {{ range $news.ByDate }}
+              {{ .Render "summary" }}
+            {{ end }}
+          </div>
+        </div>
+      </div>
+    </section>
+    {{ partial "footer.html" . }}
+  </main>
+{{ end }}

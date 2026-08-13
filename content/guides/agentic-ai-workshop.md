@@ -8,6 +8,10 @@ Welcome to the **Agentic AI Onboarding**. In this guide, you will learn how to b
 
 This isn't just a small demo; we are building the real, scalable "plumbing" that powers enterprise-level AI. Whether you are a solo developer or preparing for a hackathon, these templates provide the production-ready foundation you need.
 
+{{< info >}}
+**August 2026 update:** template-agent and template-ui were reworked for [Deep Agents](https://github.com/langchain-ai/deepagents) and config-as-code. See the [announcement](/news/deep-agent-merge/) and [stack reference](/reference/architecture/) if you used an older fork.
+{{< /info >}}
+
 ## The Architecture: A High-Tech Restaurant
 
 To understand how these three pieces fit together, imagine a high-tech restaurant:
@@ -34,7 +38,7 @@ These are things only you can provide—your AI assistant can't create accounts 
 
 | Requirement | Why You Need It | Where to Get It |
 |-------------|-----------------|-----------------|
-| **LLM API Key** | Powers the AI agent's reasoning | [Google AI Studio](https://aistudio.google.com/) (Gemini) or [OpenAI](https://platform.openai.com/) |
+| **Vertex AI credentials** | Powers the Deep Agent (Gemini via Google Cloud) | Google Cloud service account JSON — see [Agent Quick Start](/templates/agent/quick-start/) |
 | **AI Code Assistant** | Helps you build and debug | [Cursor](https://cursor.com/), [Claude Code](https://claude.ai/), or similar |
 | **GitHub Account** | Clone the template repositories | [github.com](https://github.com/) |
 
@@ -52,100 +56,127 @@ Now let's build the three components of our agentic AI application. Each templat
 
 The three templates communicate via HTTP APIs:
 
-- **MCP Server** runs on `http://localhost:5001` - Provides tools the agent can call
-- **Agent** runs on `http://localhost:5002` - Connects to MCP Server, orchestrates reasoning
-- **UI** runs on `http://localhost:5173` - Frontend connects to Agent's streaming endpoint
+- **MCP Server** runs on `http://localhost:5001` — exposes tools the agent can call
+- **Agent** runs on `http://localhost:5002` — LangGraph Deep Agent API (orchestrator + subagents)
+- **UI** runs on `http://localhost:5173` in dev — React chat UI with a **Fastify BFF** that proxies the agent API
 
 ```
-[Browser] ←→ [UI:5173] ←→ [Agent:5002] ←→ [MCP Server:5001] ←→ [External APIs/DBs]
+[Browser] ←→ [UI BFF:5173] ←→ [Agent:5002] ←→ [MCP Server:5001] ←→ [External APIs/DBs]
 ```
 
-**Configuration:** The Agent's `.env` file specifies where to find the MCP Server:
+**Configuration:**
 
-```bash
-MCP_SERVER_URL=http://localhost:5001
-```
+- **Agent → MCP:** Register servers in `config/agent/mcp.json` and reference them from orchestrator/subagent frontmatter (`mcps:`). The default local URL is `http://localhost:5001/mcp`.
+- **UI → Agent:** Set `AGENT_HOST=http://localhost:5002` in template-ui's `.env` (or `agent.endpoint` in `config/ui/settings.yaml`).
 
-The UI's backend automatically connects to the Agent at `http://localhost:5002`. When you type a message in the chat, it flows through this chain: UI → Agent → (if needed) MCP Server → back through Agent → streamed to UI.
+When you type a message in the chat, the flow is: UI BFF → agent → (if needed) MCP server → back through the agent → SSE stream to the UI.
+
+See [Stack Architecture](/reference/architecture/) for ports, persistence, and deployment patterns.
 
 ### 1. The MCP Server (The Sous Chefs)
 
 The MCP Server is a FastAPI-based microservice that keeps your business logic (tools) separate from your AI logic.
 
-For the most up-to-date setup steps, please visit the [MCP Server Template repository](https://github.com/redhat-data-and-ai/template-mcp-server) and follow the instructions in the README.
+For the most up-to-date setup steps, see the [MCP Server Quick Start](/templates/mcp-server/quick-start/) or the [template-mcp-server README](https://github.com/redhat-data-and-ai/template-mcp-server).
 
 #### Quick Start
 
-1. **Clone and Enter:**
+1. **Clone and enter:**
 
 ```bash
 git clone https://github.com/redhat-data-and-ai/template-mcp-server.git
 cd template-mcp-server
 ```
 
-2. **Launch:**
+2. **Install and launch:**
 
 ```bash
+make install   # creates .venv — required before make local
 make local
 ```
 
-3. **Verify:** Run `curl http://localhost:5001/health`
+3. **Verify:**
+
+```bash
+curl http://localhost:5001/health
+```
 
 ---
 
 ### 2. The Template Agent (The Brain)
 
-Built with **LangGraph**, this agent handles stateful conversations, meaning it remembers what was said previously.
+Built with **[Deep Agents](https://github.com/langchain-ai/deepagents)** and **LangGraph**, this template runs an orchestrator that delegates to subagents, loads skills from config, and persists conversation state in PostgreSQL.
 
-For the most up-to-date setup steps, please visit the [Agent Template repository](https://github.com/redhat-data-and-ai/template-agent) and follow the instructions in the README.
+See the [Agent Quick Start](/templates/agent/quick-start/) or the [template-agent README](https://github.com/redhat-data-and-ai/template-agent).
 
 #### Quick Start
 
-1. **Clone and Enter:**
+1. **Clone and install:**
 
 ```bash
 git clone https://github.com/redhat-data-and-ai/template-agent.git
 cd template-agent
+make install
 ```
 
-2. **Configure:** Copy `.env.example` to `.env` and add your Gemini API Key.
+2. **Configure:** Copy `.env.example` to `.env` and set `GOOGLE_APPLICATION_CREDENTIALS_CONTENT` (Vertex AI service account JSON).
 
-3. **Launch:**
+3. **Launch** (starts Postgres, Redis, and the agent on port 5002):
 
 ```bash
 make local
+curl http://localhost:5002/health
 ```
 
-4. **Test Streaming:**
+4. **Test the LangGraph API** (optional — the UI is easier for chat):
 
 ```bash
-curl -X POST "http://localhost:5002/v1/stream" \
+# Create a thread
+curl -X POST http://localhost:5002/threads \
   -H "Content-Type: application/json" \
-  -d '{"message": "What is 25 times 42?", "thread_id": "test_1"}'
+  -d '{}'
+
+# Stream a message (replace THREAD_ID from the response above)
+curl -N -X POST "http://localhost:5002/threads/THREAD_ID/runs/stream" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "assistant_id": "agent",
+    "input": {"messages": [{"role": "human", "content": "What is 25 times 42?"}]},
+    "stream_mode": "updates"
+  }'
 ```
 
 ---
 
 ### 3. The Template UI (The Face)
 
-A modern **React + Fastify** interface that supports real-time streaming word-by-word responses.
+A **React + Fastify BFF** chat interface that proxies the LangGraph streaming API and translates events for the UI (HITL, subagent progress, MCP status).
 
-For the most up-to-date setup steps, please visit the [UI Template repository](https://github.com/redhat-data-and-ai/template-ui) and follow the instructions in the README.
+See the [UI Quick Start](/templates/ui/quick-start/) or the [template-ui README](https://github.com/redhat-data-and-ai/template-ui).
 
 #### Quick Start
 
-1. **Clone and Enter:**
+1. **Clone and configure** (agent must already be running on `:5002`):
 
 ```bash
 git clone https://github.com/redhat-data-and-ai/template-ui.git
 cd template-ui
+cp env.template .env
 ```
 
-2. **Launch:**
+Edit `.env` for local development:
 
 ```bash
-make install
-make local
+AUTH_ENABLED=false
+AGENT_HOST=http://localhost:5002
+COOKIE_SIGN=your-secret-with-minimum-length-of-32-characters
+```
+
+2. **Install and run in dev mode:**
+
+```bash
+npm install
+npm run dev
 ```
 
 3. **Open:** Visit `http://localhost:5173/` in your browser.
@@ -192,12 +223,11 @@ If it's not running, go back to the Agent directory and run `make local`.
 {{< warning >}}
 **Agent can't find MCP tools**
 
-Verify the `MCP_SERVER_URL` in your Agent's `.env` file:
-```bash
-cat .env | grep MCP_SERVER_URL
-```
+1. Verify the MCP server is running: `curl http://localhost:5001/health`
+2. Check `config/agent/mcp.json` — the URL should be `http://localhost:5001/mcp` for local `make local`
+3. Confirm the orchestrator or subagent frontmatter lists the MCP key with `enabled: true` in `mcp.json`
 
-Should show: `MCP_SERVER_URL=http://localhost:5001`
+See [Agent Architecture](/templates/agent/architecture/) for MCP wiring details.
 {{< /warning >}}
 
 {{< warning >}}
@@ -236,16 +266,16 @@ The templates are designed to be **starting points**, not final products. Here's
 - **Internal HR System:** Connect to your company's employee directory, PTO system, or performance data
 
 **Where to make changes:**
-- `src/tools/` - Create new tool files with your functions
-- `src/mcp.py` - Register your tools so the agent can discover them
-- `pyproject.toml` - Add API client libraries (e.g., `salesforce-bulk`, `psycopg2`, `stripe`)
-- `.env` - Add your API keys and connection strings
+- `template_mcp_server/src/tools/` — add new tool modules
+- `template_mcp_server/src/mcp.py` — register tools in `_register_mcp_tools()`
+- `pyproject.toml` — add API client libraries (e.g., `salesforce-bulk`, `psycopg`, `stripe`)
+- `.env` — server port, auth, and connection settings
 
 **Step-by-step: Adding a custom tool**
 
 Let's walk through adding a sales data tool as an example:
 
-**1. Create a new tool** in `src/tools/my_tool.py`:
+**1. Create a new tool** in `template_mcp_server/src/tools/my_tool.py`:
 
 ```python
 def get_sales_data(territory: str, quarter: str):
@@ -267,7 +297,7 @@ def get_sales_data(territory: str, quarter: str):
     }
 ```
 
-**2. Register the tool** in `src/mcp.py`:
+**2. Register the tool** in `template_mcp_server/src/mcp.py`:
 
 ```python
 # Add the import at the top
@@ -285,7 +315,7 @@ def _register_mcp_tools(self) -> None:
 **3. Restart the MCP Server:**
 
 ```bash
-# Stop the running server (Ctrl+C) and restart
+# Stop the running server (Ctrl+C), then:
 make local
 ```
 
@@ -314,9 +344,13 @@ The agent will automatically discover your `get_sales_data` tool, understand whe
 - **Data Analyst:** "You are a business analyst. Answer questions about company metrics by querying databases and generating insights."
 
 **Where to make changes:**
-- `src/agent/prompts.py` - Define the system prompt and agent behavior
-- `src/agent/config.py` - Configure which MCP servers to connect to
-- `src/agent/graph.py` - Customize the agent's workflow (add approval steps, human-in-the-loop, etc.)
+- `config/agent/PROMPT.md` — orchestrator system prompt and frontmatter (`model`, `tools`, `skills`, `mcps`)
+- `config/agent/subagents/*.md` — specialized subagents and their MCP/skill wiring
+- `config/agent/skills/` — reusable workflow documents ([Agent Skills spec](https://agentskills.io/specification))
+- `config/agent/mcp.json` — MCP server registry
+- `config/agent/runtime/agent.yaml` — middleware, memory, observability
+
+See [Config-as-code](/reference/config-as-code/) and [Agent Architecture](/templates/agent/architecture/).
 
 #### UI: Brand and Tailor the Experience
 
@@ -331,10 +365,12 @@ The agent will automatically discover your `get_sales_data` tool, understand whe
 - **Analytics App:** Include visualization widgets that render when the agent returns data
 
 **Where to make changes:**
-- `frontend/src/App.tsx` - Update branding and page title
-- `frontend/src/components/Chat.tsx` - Customize the chat interface
-- `frontend/src/styles/` - Update colors, fonts, and theme
-- `backend/src/api.py` - Add custom endpoints for domain-specific features
+- `config/ui/settings.yaml` — branding, colors, feature flags, agent endpoint (hot-reload)
+- `src/frontend/` — React components and chat UI
+- `src/server/` — Fastify BFF routes and stream translation
+- `env.template` / `.env` — SSO, `AGENT_HOST`, `COOKIE_SIGN`
+
+See [UI Configuration](/templates/ui/configuration/) for the full settings schema.
 
 ### Building Your First Real Prototype
 
@@ -358,11 +394,12 @@ The agent will automatically discover your `get_sales_data` tool, understand whe
 
 When you're ready to move beyond your local machine (e.g., for a hackathon submission or enterprise deployment), consider these best practices:
 
-- **Security:** Enable OAuth2/SSO and configure SSL/TLS certificates.
-- **Scalability:** Deploy to Kubernetes or OpenShift for container orchestration, auto-scaling, and high availability. Use a managed PostgreSQL service instead of a local container.
-- **Observability:** Set up [Langfuse](https://langfuse.com/) to trace and debug your agent's thought process.
+- **Security:** Enable SSO on template-agent (`ENABLE_AUTH`) and template-ui (`AUTH_ENABLED`). Enable MCP OAuth when tools need per-user access. See [Enterprise Features](/reference/enterprise-features/).
+- **Scalability:** Deploy to OpenShift using manifests in each repository. Agent and UI use `deployment/overlays/openshift/`; MCP uses `deployment/openshift/`.
+- **Observability:** Configure [Langfuse](https://langfuse.com/) on template-agent for traces and feedback. OpenTelemetry is supported on agent and UI BFF.
+- **Migration:** If you started from a pre-August-2026 fork, use the [Migration Guide](/reference/migration-deep-agent/).
 
-Each template includes Kubernetes manifests and Helm charts to simplify deployment to production clusters.
+Each template includes container and OpenShift deployment assets. See each template's [Deployment](/templates/agent/deployment/) guide and [Stack Architecture](/reference/architecture/).
 
 ---
 
@@ -382,7 +419,7 @@ For developers who prefer to install all dependencies upfront, here's the comple
 
 | Tool | Version | Installation |
 |------|---------|--------------|
-| Python | 3.12+ | [python.org](https://www.python.org/) (all platforms) |
+| Python | 3.13+ | [python.org](https://www.python.org/) (all platforms) |
 | uv | Latest | macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh \| sh`<br>Windows: `powershell -c "irm https://astral.sh/uv/install.ps1 \| iex"` |
 | Make | Any | macOS/Linux: Pre-installed<br>Windows: `choco install make` or `scoop install make` |
 | Podman | Latest | [Podman Desktop](https://podman-desktop.io/) (GUI for all platforms)<br>CLI: `brew install podman` (macOS) or `choco install podman-desktop` (Windows) |
@@ -392,9 +429,7 @@ For developers who prefer to install all dependencies upfront, here's the comple
 | Tool | Version | Installation |
 |------|---------|--------------|
 | Node.js | 22+ | [nodejs.org](https://nodejs.org/) (all platforms) |
-| Python | 3.12+ | [python.org](https://www.python.org/) (all platforms) |
-| uv | Latest | macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh \| sh`<br>Windows: `powershell -c "irm https://astral.sh/uv/install.ps1 \| iex"` |
-| Make | Any | macOS/Linux: Pre-installed<br>Windows: `choco install make` or `scoop install make` |
+| npm | 8+ | Bundled with Node.js |
 
 {{< info >}}
 **Don't worry about memorizing this.** Your AI code assistant will prompt you to install anything missing when you run the templates. This reference is here for those who prefer upfront setup or are working in restricted environments.
@@ -404,10 +439,20 @@ For developers who prefer to install all dependencies upfront, here's the comple
 
 ## Next Steps
 
-Ready to dive deeper? Check out:
+Ready to dive deeper?
 
-- [MCP Server Template Documentation](/templates/mcp-server/)
-- [Agent Template Documentation](/templates/agent/)
-- [UI Template Documentation](/templates/ui/)
+**Template docs**
+- [MCP Server Template](/templates/mcp-server/)
+- [Agent Template](/templates/agent/)
+- [UI Template](/templates/ui/)
+
+**Reference**
+- [Stack Architecture](/reference/architecture/)
+- [Config-as-code](/reference/config-as-code/)
+- [Enterprise Features](/reference/enterprise-features/)
+- [Migration from pre-Deep Agent](/reference/migration-deep-agent/)
+
+**News**
+- [Deep Agent merge announcement](/news/deep-agent-merge/)
 
 For questions or feedback, visit [GitHub Discussions](https://github.com/redhat-data-and-ai/website/discussions).

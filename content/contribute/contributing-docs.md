@@ -24,8 +24,8 @@ content/
 │   ├── agent/         # Agent guides
 │   └── ui/            # UI guides
 ├── tools/             # Tool setup guides
-├── guides/            # Tutorials (placeholder)
-└── reference/         # Technical reference (placeholder)
+├── guides/            # Tutorials and workshops
+└── reference/         # Stack architecture, config, enterprise features
 ```
 
 ## Writing Guidelines
@@ -68,16 +68,25 @@ graph TD
 
 ## Testing Changes
 
-Before submitting:
+This site does **not** use pre-commit hooks. Run these before opening a pull request:
 
 ```bash
-# Run local server
+# Preview in the browser
 ./serve.sh
 
-# Check for broken links
-# Verify formatting
-# Test on multiple screen sizes
+# Production build (required)
+hugo --gc --minify
+
+# Super Linter — same as CI (may not run on Apple Silicon; check the PR workflow)
+make super-linter
+
+# Optional: broken-link scan (nightly in CI)
+make test
 ```
+
+On **M-series Macs**, `make super-linter` can fail because the container image has no ARM build. Confirm the **Super linter** check passes on your pull request in GitHub Actions instead.
+
+Also verify formatting in the browser and test at multiple screen sizes.
 
 ## Submitting Changes
 

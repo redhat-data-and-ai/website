@@ -1,164 +1,125 @@
 ---
 title: "Quick Start"
 weight: 5
-description: "Deploy your chat interface in minutes with React frontend and FastAPI backend."
+description: "Run template-ui locally with npm run dev, connect to template-agent on port 5002, and open the chat UI."
 ---
 
-Get your AI chat interface up and running quickly! This guide walks you through cloning the template, configuring the backend, and launching your first chat UI.
+Get the chat UI running against a local Deep Agent. This guide assumes you will run template-agent separately.
 
 ## Prerequisites
 
-Before you begin, ensure you have:
+- **Node.js 22+** and **npm 8+**
+- **[template-agent](/templates/agent/quick-start/)** running on **http://localhost:5002**
+- **Optional:** [template-mcp-server](https://github.com/redhat-data-and-ai/template-mcp-server) on `:5001` for tool-enabled agent workflows
 
-- **Node.js 18+** and **npm** installed
-- **Python 3.12+** installed
-- **UV package manager** ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
-- **An AI agent** running (see [Agent Template](/templates/agent/))
+## Step 1: Start the Agent
 
-## Step 1: Clone the Template
+In a separate terminal, start template-agent:
 
 ```bash
-# Clone the UI template
+git clone https://github.com/redhat-data-and-ai/template-agent.git
+cd template-agent
+make install
+make local
+curl http://localhost:5002/health
+```
+
+## Step 2: Clone and Configure the UI
+
+```bash
 git clone https://github.com/redhat-data-and-ai/template-ui.git
 cd template-ui
+cp env.template .env
 ```
 
-## Step 2: Start the Backend
-
-The backend connects your UI to your AI agent:
+Edit `.env` for local development:
 
 ```bash
-# Navigate to backend
-cd backend
-
-# Set up Python environment
-uv venv --python 3.12
-source .venv/bin/activate
-
-# Install dependencies
-uv pip install -e ".[dev]"
-
-# Configure agent connection
-cat > .env << EOF
-AGENT_URL=http://localhost:8000
-PORT=8001
-EOF
-
-# Start the backend
-python -m backend.main
+PORT=8080
+ENVIRONMENT=development
+AUTH_ENABLED=false
+AGENT_HOST=http://localhost:5002
+COOKIE_SIGN=your-secret-with-minimum-length-of-32-characters
 ```
 
-The backend will be available at `http://localhost:8001`
+{{< info >}}
+`AUTH_ENABLED=false` uses a dummy development user so you can test without SSO credentials.
+{{< /info >}}
 
-## Step 3: Start the Frontend
+### Optional: runtime settings file
 
-In a new terminal:
+For branding and feature flags without code changes:
 
 ```bash
-# Navigate to frontend
-cd frontend
+cp config/ui/examples/minimal.yaml config/ui/settings.yaml
+```
 
-# Install dependencies
+See [Configuration](/templates/ui/configuration/) for the full schema.
+
+## Step 3: Install and Run
+
+```bash
 npm install
-
-# Configure backend connection
-cat > .env.local << EOF
-VITE_API_URL=http://localhost:8001
-EOF
-
-# Start the development server
 npm run dev
 ```
 
-The UI will be available at `http://localhost:5173`
-
-## Step 4: Test Your Chat Interface
-
-1. Open your browser to `http://localhost:5173`
-2. You should see the chat interface
-3. Type a message and send it
-4. The UI will communicate with your agent through the backend
-
-{{< info >}}
-**Agent Required**: The UI needs an AI agent backend to function. Make sure you have an agent running (see [Agent Template](/templates/agent/)) before testing the UI.
-{{< /info >}}
-
-## Step 5: Customize the UI
-
-Now that it's working, customize it:
-
-### Branding
-
-Edit `frontend/src/config.ts`:
-
-```typescript
-export const config = {
-  appName: "Your App Name",
-  welcomeMessage: "Hello! How can I help you today?",
-  theme: {
-    primaryColor: "#667eea",
-    // ... more theme options
-  }
-}
-```
-
-### Features
-
-Enable/disable features in `frontend/src/features.ts`:
-
-```typescript
-export const features = {
-  markdown: true,
-  codeHighlight: true,
-  fileUpload: false,
-  voiceInput: false,
-}
-```
-
-## Step 6: Deploy to Production
-
-When ready for production:
+Or use the Makefile shortcut:
 
 ```bash
-# Build frontend
-cd frontend
-npm run build
-
-# Build backend container
-cd ../backend
-podman build -t your-registry/chat-backend:v1.0 .
-
-# Deploy to Kubernetes (manifests included in /kubernetes/)
-kubectl apply -f kubernetes/
+make dev
 ```
+
+The app is available at **http://localhost:5173** (Vite dev server). The Fastify BFF runs as part of `npm run dev` and proxies to `AGENT_HOST`.
+
+## Step 4: Test the Chat
+
+1. Open **http://localhost:5173** in your browser
+2. Send a message in the chat interface
+3. Confirm streaming responses appear (word-by-word or chunked)
+4. If the agent has MCP tools configured, ask what tools are available
+
+## Step 5: Verify the Stack
+
+| Service | URL | Check |
+|---------|-----|-------|
+| template-agent | http://localhost:5002/health | `curl` returns OK |
+| template-mcp-server | http://localhost:5001/health | Optional, for tools |
+| template-ui | http://localhost:5173 | Chat loads and streams |
+
+## Step 6: Production Build (Optional)
+
+```bash
+npm run build
+npm start
+```
+
+Production mode serves the built React app and API from the Fastify server (default port **8080**).
 
 ## Next Steps
 
-- **Customize styling**: Update TailwindCSS theme in `frontend/tailwind.config.js`
-- **Add authentication**: Enable user login (templates included)
-- **Connect to your agent**: Point to your production agent URL
-- **Monitor usage**: Set up logging and analytics
+- **Customize branding** — [Configuration](/templates/ui/configuration/)
+- **Deploy** — [Deployment Guide](/templates/ui/deployment/)
+- **Read agent docs** — [Agent Architecture](/templates/agent/architecture/)
 
 {{< tip >}}
-**Development Tip**: Use the included Podman Compose file (`compose.yaml`) to run the entire stack (frontend + backend + agent) together during development. Works with both Podman and Docker.
+Use the debug panel (enabled in `minimal.yaml` example config) to inspect raw stream events during development.
 {{< /tip >}}
 
 ## Troubleshooting
 
-**UI can't connect to backend**
-- Check that backend is running on port 8001
-- Verify CORS settings in backend allow frontend origin
-- Check browser console for connection errors
+**UI loads but chat does not respond**
+- Confirm template-agent is running: `curl http://localhost:5002/health`
+- Check `AGENT_HOST` in `.env` points to `:5002`
+- Review the terminal running `npm run dev` for proxy errors
 
-**Chat not responding**
-- Ensure your AI agent is running and accessible
-- Check backend logs for agent connection errors
-- Verify agent URL in backend configuration
+**Authentication errors in development**
+- Set `AUTH_ENABLED=false` in `.env`
+- Ensure `COOKIE_SIGN` is at least 32 characters
 
-**Styling issues**
-- Run `npm run build` to rebuild after theme changes
-- Clear browser cache (Cmd+Shift+R)
-- Check TailwindCSS configuration
+**Port conflicts**
+```bash
+lsof -ti:5173 | xargs kill -9
+lsof -ti:8080 | xargs kill -9
+```
 
 For more help, visit [GitHub Issues](https://github.com/redhat-data-and-ai/template-ui/issues).
-

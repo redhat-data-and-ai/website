@@ -1,253 +1,152 @@
 ---
 title: "Deployment Guide"
 weight: 10
-description: "Deploy your chat UI to production with frontend, backend, and CDN configuration."
+description: "Deploy template-ui with Podman, OpenShift Kustomize overlays, or Kind for production chat against Deep Agent."
 ---
 
-This guide covers deploying your chat UI to production, including frontend deployment, backend API setup, and CDN configuration.
+This guide covers deploying **template-ui** to production, including the Fastify BFF, Redis sessions, SSO, and connection to template-agent.
 
 ## Prerequisites
 
-Before deploying:
-
-- Kubernetes cluster or hosting platform
+- template-agent deployed and reachable (see [Agent Deployment](/templates/agent/deployment/))
 - Container registry access
-- Domain name (optional but recommended)
-- SSL certificate (Let's Encrypt or other)
-- Backend agent deployed and accessible
+- OpenShift or Kubernetes cluster (or Podman for single-container runs)
+- SSO provider configured (if `auth_enabled: true`)
+- Redis available for production sessions (compose uses port **6380** locally)
 
-## Step 1: Build Production Assets
-
-### Build Frontend
+## Build for production
 
 ```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Build for production
 npm run build
-
-# Output will be in frontend/dist/
 ```
 
-### Build Backend Container
+Output:
+
+- `dist/frontend/` — built React application
+- `dist/server/` — compiled Fastify BFF
+
+Run locally:
 
 ```bash
-cd backend
-
-# Build container
-podman build -t your-registry/chat-backend:v1.0 .
-
-# Push to registry
-podman push your-registry/chat-backend:v1.0
+npm start
 ```
 
-## Step 2: Deploy Backend to Kubernetes
+Serves API and static frontend on `PORT` (default **8080**).
+
+## Container deployment
+
+```bash
+podman build -t your-registry/template-ui:latest .
+podman run -p 8080:8080 --env-file .env your-registry/template-ui:latest
+```
+
+The `Containerfile` uses a Red Hat UBI base image.
+
+## Local compose (UI + Redis)
+
+```bash
+# compose.yml runs UI and Redis together
+podman-compose up
+```
+
+Redis supports session storage when `AUTH_ENABLED=true`.
+
+## OpenShift deployment
+
+Kustomize overlays live in `deployment/overlays/openshift/`:
+
+- BuildConfig, ImageStream, Route
+- ConfigMap for `settings.yaml`
+- Secret references for SSO and `COOKIE_SIGN`
+
+Base manifests are in `deployment/base/`. Apply the overlay appropriate to your cluster namespace.
+
+### Production settings checklist
+
+| Setting | Notes |
+|---------|--------|
+| `AGENT_ENDPOINT` or `settings.yaml` `agent.endpoint` | HTTPS URL to template-agent Route |
+| `FEATURE_AUTH_ENABLED=true` | Enable SSO in production |
+| `COOKIE_SIGN` | Strong secret in OpenShift Secret |
+| `SSO_*` | OIDC client aligned with Route URL |
+| `config/ui/settings.yaml` | Branding via ConfigMap mount |
+| `config/compliance/` | OPA policies for regulated environments |
+
+## Kind (local Kubernetes)
+
+```bash
+# See deployment/overlays/kind/ in the repository
+```
+
+NodePort overlay for local cluster testing without OpenShift Routes.
+
+## Environment configuration
+
+### Agent connection
+
+Point the BFF at your deployed template-agent:
+
+```bash
+AGENT_ENDPOINT=https://agent.apps.example.com
+```
+
+Or mount `config/ui/settings.yaml`:
 
 ```yaml
-# backend-deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: chat-backend
-spec:
-  replicas: 3
-  template:
-    spec:
-      containers:
-      - name: backend
-        image: your-registry/chat-backend:v1.0
-        env:
-        - name: AGENT_URL
-          value: "http://ai-agent.ai-agents.svc:8000"
-        - name: CORS_ORIGINS
-          value: "https://your-domain.com"
-        ports:
-        - containerPort: 8001
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+agent:
+  endpoint: "https://agent.apps.example.com"
+  timeout_ms: 60000
+  streaming: true
 ```
+
+### Authentication
+
+**Development:** `AUTH_ENABLED=false` — dummy user, no SSO.
+
+**Production:** `AUTH_ENABLED=true` with:
 
 ```bash
-kubectl apply -f kubernetes/backend/
+SSO_CLIENT_ID=...
+SSO_CLIENT_SECRET=...
+SSO_ISSUER_HOST=https://your-idp.example.com
+SSO_CALLBACK_URL=https://chat.apps.example.com/auth/callback/oidc
 ```
 
-## Step 3: Deploy Frontend
+### Security
 
-### Option A: Static Hosting (Recommended)
+- Use **Helmet** and **rate limiting** settings in `settings.yaml` (production example config)
+- Store secrets in OpenShift Secrets, not ConfigMaps
+- Enable **OPA compliance** policies when required (`config/compliance/policy.rego`)
 
-Deploy frontend to CDN or static hosting:
+## Observability
 
-**GitHub Pages:**
-```bash
-# Build
-npm run build
+- **OpenTelemetry** tracing via Fastify plugins
+- **`/version`** endpoint for build identification
+- Correlate UI requests with agent traces via shared request IDs (when OTEL enabled on both services)
 
-# Deploy to gh-pages branch
-npm run deploy
-```
+## Stack deployment order
 
-**Netlify/Vercel:**
-```bash
-# Connect your repo
-# Set build command: npm run build
-# Set publish directory: dist
-```
+1. **template-mcp-server** — tools (`:5001` or cluster Service)
+2. **template-agent** — Deep Agent API (`:5002` or Route)
+3. **template-ui** — chat BFF pointing `AGENT_ENDPOINT` at the agent
 
-### Option B: Kubernetes Deployment
-
-```yaml
-# frontend-deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: chat-frontend
-spec:
-  replicas: 2
-  template:
-    spec:
-      containers:
-      - name: frontend
-        image: nginx:alpine
-        volumeMounts:
-        - name: frontend-files
-          mountPath: /usr/share/nginx/html
-      volumes:
-      - name: frontend-files
-        configMap:
-          name: frontend-dist
-```
-
-## Step 4: Configure Domain & SSL
-
-### Set up Ingress
-
-```yaml
-# ingress.yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: chat-ui
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  tls:
-  - hosts:
-    - chat.your-domain.com
-    secretName: chat-tls
-  rules:
-  - host: chat.your-domain.com
-    http:
-      paths:
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: chat-backend
-            port:
-              number: 8001
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: chat-frontend
-            port:
-              number: 80
-```
-
-## Step 5: Environment Configuration
-
-### Frontend Environment Variables
-
-Create `.env.production`:
+Verify end-to-end after each layer:
 
 ```bash
-VITE_API_URL=https://chat.your-domain.com/api
-VITE_APP_NAME=Your Chat App
-VITE_ENABLE_AUTH=true
+curl https://agent.apps.example.com/health
+curl https://chat.apps.example.com/version
 ```
 
-### Backend Environment Variables
+## Scaling
 
-```bash
-# In Kubernetes deployment
-env:
-- name: AGENT_URL
-  value: "http://ai-agent:8000"
-- name: CORS_ORIGINS
-  value: "https://chat.your-domain.com"
-- name: JWT_SECRET
-  valueFrom:
-    secretKeyRef:
-      name: backend-secrets
-      key: jwt-secret
-```
-
-## Step 6: Monitoring & Logging
-
-### Health Checks
-
-```bash
-# Check backend health
-curl https://chat.your-domain.com/api/health
-
-# Check frontend
-curl https://chat.your-domain.com/
-
-# View logs
-kubectl logs -f deployment/chat-backend
-```
-
-### Metrics
-
-Monitor key metrics:
-
-- Response times
-- Error rates
-- Active users
-- Message throughput
-- Agent call success rate
-
-## Step 7: Security Checklist
-
-- [ ] **HTTPS enabled** with valid SSL certificate
-- [ ] **CORS configured** properly for your domain
-- [ ] **API keys** stored in Kubernetes secrets
-- [ ] **Rate limiting** enabled on backend
-- [ ] **Authentication** configured if needed
-- [ ] **Input validation** on all endpoints
-- [ ] **Security headers** configured
-
-## Scaling Considerations
-
-### Frontend
-
-- **CDN**: Use CloudFlare, Cloudfront, or similar
-- **Caching**: Set appropriate cache headers
-- **Compression**: Enable gzip/brotli
-
-### Backend
-
-- **Horizontal scaling**: Add more replicas as needed
-- **Connection pooling**: Optimize agent connections
-- **Caching**: Cache agent responses when appropriate
+- **UI replicas** — stateless BFF; scale horizontally behind a Route/Ingress
+- **Redis** — use a managed Redis service for shared sessions across replicas
+- **Agent** — scale template-agent independently; UI proxies to a single agent Service endpoint
 
 ## Next Steps
 
-- **Monitor usage**: Set up analytics
-- **Gather feedback**: Collect user feedback
-- **Iterate**: Improve based on real usage
-- **Scale**: Adjust resources as traffic grows
+- [Configuration](/templates/ui/configuration/) — branding and feature flags
+- [Agent Deployment](/templates/agent/deployment/) — deploy the Deep Agent backend
+- [GitHub Issues](https://github.com/redhat-data-and-ai/template-ui/issues)
 
-For deployment questions, visit [GitHub Discussions](https://github.com/redhat-data-and-ai/website/discussions).
-
-
-
-
+For community discussion, visit [GitHub Discussions](https://github.com/redhat-data-and-ai/website/discussions).

@@ -1,141 +1,113 @@
 ---
 title: "UI Template"
 weight: 30
-description: "Deploy modern chat interfaces built with React and FastAPI that work seamlessly with AI agents for production-ready user experiences."
+description: "React chat UI with a Fastify backend-for-frontend that proxies the Deep Agent LangGraph streaming API."
 github_repo: "https://github.com/redhat-data-and-ai/template-ui"
 ---
 
-The UI Template provides a production-ready chat interface that connects users to your AI agents. Built with React and FastAPI, it delivers a modern, responsive user experience with enterprise features.
+The UI Template is a production-ready chat interface for [template-agent](/templates/agent/) Deep Agents. It combines a React frontend with a **Fastify backend-for-frontend (BFF)** that proxies the LangGraph API, translates streaming events for the UI, and handles sessions, auth, and runtime branding.
+
+{{< info >}}
+**August 2026 update:** template-ui was reworked for the Deep Agent backend. See the [announcement](/news/template-ui-deep-agent-update/).
+{{< /info >}}
+
+## What is a backend-for-frontend (BFF)?
+
+A **backend-for-frontend** is a server tailored to your UI's needs. The browser does **not** call template-agent directly.
+
+Instead:
+
+1. The **React app** talks only to the Fastify BFF (same origin in production)
+2. The **BFF** proxies requests to template-agent's LangGraph API on port **5002**
+3. The BFF **translates** SSE streams into UI-friendly events (subagent progress, HITL interrupts, artifacts, MCP status)
+4. The BFF handles **sessions**, SSO, rate limiting, and **runtime branding** from `config/ui/settings.yaml`
+
+Agent logic stays in template-agent. The UI focuses on presentation, auth, and stream shaping. See [Configuration](/templates/ui/configuration/) for the full settings reference.
 
 ## Overview
 
-This template gives you a complete chat UI for your AI applications:
+This template provides:
 
-- **Modern React Frontend** - Responsive, accessible chat interface
-- **FastAPI Backend** - High-performance API gateway to your agents
-- **Real-time Communication** - WebSocket support for streaming responses
-- **Authentication** - Built-in user authentication and session management
-- **Kubernetes-Ready** - Production deployment configurations included
+- **React chat UI** — streaming responses, markdown rendering, conversation history
+- **Fastify BFF** — LangGraph API proxy with Deep Agent event translation
+- **Runtime configuration** — branding, feature flags, and agent endpoint without rebuilds
+- **Deep Agent UI features** — HITL interrupt banners, task/todo progress, artifact viewer, MCP status panel
+- **Enterprise options** — SSO/OAuth, OPA compliance policies, OpenTelemetry tracing, Redis sessions
 
 ## Key Features
 
-**React Chat Interface**
-Beautiful, responsive chat UI with support for markdown rendering, code highlighting, and rich media. Mobile-friendly and accessible.
+**Deep Agent streaming**
+Proxies `/threads` and `/runs/stream` from template-agent. Supports subagent indicators, intermediate responses, and markdown-first agent output.
 
-**Agent Integration**
-Seamlessly connects to AI agents built with the Agent Template. Supports streaming responses, multi-turn conversations, and context management.
+**Runtime branding**
+Change title, logo, colors, and feature flags via `config/ui/settings.yaml` or environment variables. Branding and agent endpoint changes hot-reload without restart.
 
-**Production Features**
-Includes authentication, rate limiting, error handling, logging, and monitoring. Deploy with confidence.
+**Settings and personalization**
+Profile, memory, rules editor, appearance settings, and always-allowed tools (where enabled in agent backend).
 
-**Customizable**
-Easy to theme and customize. Add your branding, adjust colors, and modify the layout to match your needs.
+**Debug and feedback**
+Debug panel for stream inspection; feedback buttons wired to the agent feedback API.
+
+**Production deployment**
+Kustomize overlays for Kind and OpenShift, `compose.yml` with Redis, Playwright e2e tests, and UBI-based Containerfile.
 
 ## Architecture
 
 {{< mermaid >}}
 graph TD
-    A[Web Browser] --> B[React Frontend]
-    B --> C[FastAPI Backend]
-    C --> D[AI Agent]
-    D --> E[MCP Servers]
-    
-    B -->|WebSocket| C
-    C -->|Streaming| D
+    Browser[Web Browser] --> React[React + Vite :5173]
+    React --> BFF[Fastify BFF]
+    BFF --> Agent[template-agent LangGraph API :5002]
+    Agent --> MCP[template-mcp-server :5001]
 
-    style B fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
-    style C fill:#fff3e0,stroke:#ff9800,stroke-width:2px
-    style D fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
-    style E fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    BFF --> Redis[(Redis sessions)]
+    Config[config/ui/settings.yaml] --> BFF
+
+    style React fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    style BFF fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    style Agent fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    style MCP fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
 {{< /mermaid >}}
+
+<p class="figure-caption">Figure 1. template-ui request flow: the browser talks to the Fastify BFF, which proxies and translates Deep Agent streams from template-agent.</p>
 
 ## Getting Started
 
 {{< info >}}
 **Repository**: [template-ui on GitHub](https://github.com/redhat-data-and-ai/template-ui)
-
-Clone the repository and follow the README for complete setup instructions.
 {{< /info >}}
 
-### Quick Start
-
 ```bash
-# Clone the template
 git clone https://github.com/redhat-data-and-ai/template-ui.git
 cd template-ui
-
-# Install frontend dependencies
-cd frontend
+cp env.template .env
+# Set AGENT_HOST=http://localhost:5002 and AUTH_ENABLED=false for local dev
 npm install
 npm run dev
-
-# In another terminal, start backend
-cd ../backend
-uv venv --python 3.12
-source .venv/bin/activate
-uv pip install -e ".[dev]"
-python -m backend.main
 ```
+
+Open **http://localhost:5173**. Ensure [template-agent](/templates/agent/quick-start/) is running on `:5002` first.
 
 ## Technology Stack
 
-**Frontend:**
-- **React 18** - Modern React with hooks
-- **TypeScript** - Type-safe development
-- **Vite** - Fast build tooling
-- **TailwindCSS** - Utility-first styling
-- **React Markdown** - Rich text rendering
+**Frontend:** React 19, TypeScript, Vite, Tailwind CSS, Radix UI, React Markdown
 
-**Backend:**
-- **FastAPI** - High-performance Python framework
-- **WebSockets** - Real-time communication
-- **Pydantic** - Data validation
-- **JWT Authentication** - Secure user sessions
+**Backend (BFF):** Fastify, TypeScript, OAuth2/SSO, Redis session store, OPA compliance plugin
 
-## Use Cases
+## Related Templates
 
-**Customer Support Chat**
-Deploy a chat interface for customer support powered by AI agents with access to your knowledge base via MCP servers.
-
-**Internal Tools**
-Create chat interfaces for internal teams to interact with company data, systems, and workflows.
-
-**Developer Documentation**
-Build interactive documentation where users can ask questions and get code examples from your AI agent.
-
-**Data Exploration**
-Provide a chat interface for non-technical users to query and explore data using natural language.
-
-## Features
-
-### User Experience
-
-- **Streaming Responses** - See AI responses as they're generated
-- **Markdown Support** - Rich formatting with code highlighting
-- **Conversation History** - Save and resume conversations
-- **Multi-turn Context** - Agents remember conversation history
-- **Copy/Share** - Easy sharing of conversations and responses
-
-### Enterprise Features
-
-- **Authentication** - User login and session management
-- **Rate Limiting** - Prevent abuse and manage costs
-- **Audit Logging** - Track all interactions
-- **Error Handling** - Graceful degradation and error messages
-- **Mobile Responsive** - Works on all devices
+- [Agent Template](/templates/agent/) — Deep Agent runtime the UI connects to
+- [MCP Server Template](/templates/mcp-server/) — tools used by the agent
+- [Stack reference](/reference/architecture/) — full-stack ports and BFF request flow
+- [template-ui update announcement](/news/template-ui-deep-agent-update/)
 
 ## Next Steps
 
-1. **Explore the repository** - [View on GitHub](https://github.com/redhat-data-and-ai/template-ui)
-2. **Build an agent first** - [Agent Template](/templates/agent/)
-3. **Set up MCP servers** - [MCP Server Template](/templates/mcp-server/)
-4. **Join the community** - [GitHub Discussions](https://github.com/redhat-data-and-ai/website/discussions)
+1. [Quick Start](/templates/ui/quick-start/) — local dev with template-agent
+2. [Configuration](/templates/ui/configuration/) — branding, feature flags, agent endpoint
+3. [Deployment Guide](/templates/ui/deployment/) — OpenShift, containers, production hardening
+4. [GitHub repository](https://github.com/redhat-data-and-ai/template-ui)
 
 {{< tip >}}
-**Full Stack**: For a complete AI application, combine this UI template with the Agent Template and MCP Server Template for a full stack solution.
+**Full stack ports:** MCP `:5001` → Agent `:5002` → UI `:5173` (dev) or `:8080` (production).
 {{< /tip >}}
-
-## Documentation Status
-
-This template is under active development. Complete documentation will be added as the template matures. For now, refer to the [GitHub repository](https://github.com/redhat-data-and-ai/template-ui) for the latest information.
-

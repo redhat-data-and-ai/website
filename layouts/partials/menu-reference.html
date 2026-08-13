@@ -1,0 +1,25 @@
+<nav class="pf-c-nav pf-m-light sticky" aria-label="Reference navigation">
+  <ul class="pf-c-nav__list">
+    <li class="pf-c-nav__item">
+      <a href="/reference/" class="pf-c-nav__link {{ if eq .Kind "section" }}pf-m-current{{ end }}">
+        <span class="pf-c-icon pf-m-md pf-m-inline">
+          <span class="pf-c-icon__content">
+            <i class="fas fa-angle-left" aria-hidden="true"></i>
+          </span>
+        </span>
+        <span style="padding-left: 10px;">Reference</span>
+      </a>
+    </li>
+    {{ $currentPage := . }}
+    {{ $section := .Site.GetPage "/reference" }}
+    {{ range $section.Pages.ByWeight }}
+    <li class="pf-c-nav__item">
+      <a href="{{ .RelPermalink }}"
+         class="pf-c-nav__link {{ if eq $currentPage . }}pf-m-current{{ end }}"
+         style="padding-left: 32px;">
+        <span class="wrappable">{{ .Title }}</span>
+      </a>
+    </li>
+    {{ end }}
+  </ul>
+</nav>
