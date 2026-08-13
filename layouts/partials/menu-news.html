@@ -11,7 +11,7 @@
       </a>
     </li>
     {{ $news := where .Site.RegularPages "Section" "news" }}
-    {{ range $news.ByDate }}
+    {{ range $news.ByDate.Reverse }}
     <li class="pf-c-nav__item">
       <a href="{{ .RelPermalink }}"
          class="pf-c-nav__link {{ if eq $.RelPermalink .RelPermalink }}pf-m-current{{ end }}"
