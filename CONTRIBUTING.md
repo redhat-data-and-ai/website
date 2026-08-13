@@ -73,8 +73,44 @@ cd website
    - Go to https://github.com/redhat-data-and-ai/website
    - Click "New Pull Request"
    - Describe your changes
+   - Confirm the **Super linter** GitHub Actions check passes (required)
 
-## Documentation Standards
+## Before Submitting a Pull Request
+
+This site does **not** use [pre-commit](https://pre-commit.com/) hooks. Validation runs in CI and via Makefile targets.
+
+### Required checks
+
+```bash
+# Production Hugo build — must complete without errors
+hugo --gc --minify
+```
+
+Confirm the **Super linter** workflow passes on your pull request. That job runs on every PR and is the lint gate for this repository.
+
+### Optional local checks
+
+```bash
+# Super Linter (same as CI)
+make super-linter
+
+# Link checker (htmltest — also runs on a nightly schedule)
+make test
+
+# Spell check
+make spellcheck
+```
+
+**Apple Silicon Macs:** `make super-linter` often fails locally with `no image found ... architecture "arm64"` because the slim Super Linter image is x86-only. Use the PR's GitHub Actions result instead.
+
+### Checklist
+
+- [ ] `./serve.sh` — preview looks correct in the browser
+- [ ] `hugo --gc --minify` — builds without errors
+- [ ] Super linter CI check passes on the PR
+- [ ] Commands and paths in docs match the current template repositories
+- [ ] Code examples tested where applicable
+- [ ] No emojis in headings (see [Documentation Standards](#documentation-standards))
 
 ### Writing Style
 
@@ -139,11 +175,12 @@ content/
 
 ### Before Submitting
 
-- [ ] Test locally with `./serve.sh`
-- [ ] No build errors (check Hugo output)
-- [ ] All links work
-- [ ] Code examples are tested
-- [ ] Spelling checked
+- [ ] Preview with `./serve.sh`
+- [ ] `hugo --gc --minify` completes without errors
+- [ ] Super linter CI check passes (use GitHub Actions if `make super-linter` fails on Apple Silicon)
+- [ ] Commands and links verified against current template repos
+- [ ] Code examples tested
+- [ ] Spelling checked (`make spellcheck` optional)
 - [ ] Follows style guide
 
 ### PR Description Template
@@ -159,9 +196,10 @@ Brief description of changes
 - [ ] Documentation structure change
 
 ## Checklist
-- [ ] Tested locally
-- [ ] No build errors
-- [ ] Links verified
+- [ ] Previewed with `./serve.sh`
+- [ ] `hugo --gc --minify` succeeds
+- [ ] Super linter CI check passes
+- [ ] Links and commands verified
 - [ ] Follows style guide
 ```
 
