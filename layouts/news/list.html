@@ -18,7 +18,7 @@
           {{ .Content }}
           <div class="pf-u-mt-xl">
             {{ $news := where .Site.RegularPages "Section" "news" }}
-            {{ range $news.ByDate }}
+            {{ range $news.ByDate.Reverse }}
               {{ .Render "summary" }}
             {{ end }}
           </div>
