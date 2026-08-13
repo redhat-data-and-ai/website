@@ -1,113 +1,148 @@
 ---
 title: "Quick Start"
 weight: 5
-description: "Get your first AI agent running in minutes using LangGraph and MCP integration."
+description: "Run the Deep Agent template locally with make install and make local, then test the LangGraph API on port 5002."
 ---
 
-Get your AI agent up and running quickly! This guide walks you through cloning the template, configuring MCP servers, and deploying your first agent.
+Get the Deep Agent runtime running locally. This guide covers installation, credentials, infrastructure dependencies, and a first API call.
 
 ## Prerequisites
 
 Before you begin, ensure you have:
 
-- **Python 3.12+** installed
-- **UV package manager** ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
-- **At least one MCP server** running (see [MCP Server Template](/templates/mcp-server/))
-- **Basic understanding** of Python and async programming
+- **Python 3.13+**
+- **[uv](https://docs.astral.sh/uv/getting-started/installation/)** package manager
+- **[Podman](https://podman.io/)** and **podman-compose** (for Postgres and Redis)
+- **Google Vertex AI credentials** — service account JSON for Gemini models
+- **Optional:** [template-mcp-server](https://github.com/redhat-data-and-ai/template-mcp-server) on `:5001` for tool calls
 
-## Step 1: Clone the Template
+## Step 1: Clone and Install
 
 ```bash
-# Clone the agent template
 git clone https://github.com/redhat-data-and-ai/template-agent.git
 cd template-agent
-
-# Set up Python environment
-uv venv --python 3.12
-source .venv/bin/activate
-
-# Install dependencies
-uv pip install -e ".[dev]"
+make install
 ```
 
-## Step 2: Configure MCP Servers
+`make install` creates a `.venv`, installs dependencies with dev extras, and sets up pre-commit hooks.
 
-Edit the configuration file to point to your MCP servers:
+## Step 2: Configure Environment
 
-```python
-# config/settings.py or .env file
-MCP_SERVERS=[
-    "http://localhost:3000/mcp",  # Your MCP server
-]
-
-# LLM Configuration
-LLM_MODEL="gpt-4"
-LLM_API_KEY="your-api-key"
-```
-
-{{< info >}}
-**MCP Servers Required**: The agent needs at least one MCP server to provide tools and capabilities. If you don't have one yet, start with the [MCP Server Quick Start](/templates/mcp-server/quick-start/).
-{{< /info >}}
-
-## Step 3: Run Your First Agent
+Copy the example environment file and set your Vertex AI credentials:
 
 ```bash
-# Start the agent
-python -m agent_template.src.main
-
-# The agent will:
-# 1. Connect to your MCP servers
-# 2. Discover available tools
-# 3. Start accepting requests
+cp .env.example .env
 ```
 
-## Step 4: Test the Agent
+Edit `.env` and set `GOOGLE_APPLICATION_CREDENTIALS_CONTENT` to your Google service account JSON (single-line or as documented in `.env.example`).
 
-Send a test request to verify everything works:
+{{< info >}}
+`make local` creates `.env` from `.env.example` automatically if the file does not exist.
+{{< /info >}}
 
-```python
-# test_agent.py
-import asyncio
-from agent_template.src.agent import run_agent
+## Step 3: Start the Agent
 
-async def test():
-    result = await run_agent("Hello! What tools do you have available?")
-    print(result)
-
-asyncio.run(test())
+```bash
+make local
 ```
 
-## Step 5: Customize for Your Use Case
+This command:
 
-Now that the basic agent is working, customize it:
+1. Starts **PostgreSQL** (pgvector) and **Redis** via Podman Compose
+2. Waits for the database to be ready
+3. Launches the Aegra dev server on **http://localhost:5002**
 
-1. **Define your workflow** - Edit `src/agent/workflows.py`
-2. **Add custom prompts** - Update `src/agent/prompts.py`
-3. **Configure tools** - Adjust which MCP tools to use
-4. **Test thoroughly** - Run `pytest` to verify
+Verify in another terminal:
+
+```bash
+curl http://localhost:5002/health
+```
+
+To stop only the agent process, press Ctrl+C. Postgres and Redis keep running until you run `make local-down`.
+
+## Step 4: Connect an MCP Server (Optional)
+
+MCP servers are defined in `config/agent/mcp.json`. For local development with [template-mcp-server](https://github.com/redhat-data-and-ai/template-mcp-server):
+
+```bash
+# In a separate terminal
+git clone https://github.com/redhat-data-and-ai/template-mcp-server.git
+cd template-mcp-server
+make local
+curl http://localhost:5001/health
+```
+
+The default `mcp.json` URL for `make local` is `http://localhost:5001/mcp`.
+
+If you do not have an MCP server yet, the agent still starts — but tool-dependent workflows need MCP configured. See the [MCP Server Quick Start](/templates/mcp-server/quick-start/).
+
+## Step 5: Test the LangGraph API
+
+Create a conversation thread:
+
+```bash
+curl -X POST http://localhost:5002/threads \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Stream a message (replace `THREAD_ID` with the ID from the response):
+
+```bash
+curl -N -X POST "http://localhost:5002/threads/THREAD_ID/runs/stream" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "assistant_id": "agent",
+    "input": {"messages": [{"role": "human", "content": "Hello"}]},
+    "stream_mode": "updates"
+  }'
+```
+
+The assistant ID `agent` is defined in `aegra.json`.
+
+## Step 6: Customize via Config
+
+Most changes do not require Python edits:
+
+1. **Orchestrator prompt** — edit `config/agent/PROMPT.md`
+2. **Subagents** — add or modify files in `config/agent/subagents/`
+3. **Skills** — edit documents in `config/agent/skills/`
+4. **MCP servers** — update `config/agent/mcp.json`
+5. **Runtime settings** — adjust `config/agent/runtime/agent.yaml`
+
+See [Architecture](/templates/agent/architecture/) for the full config layout.
+
+## Step 7: Run Tests
+
+```bash
+make test           # unit tests
+make test-all       # unit + skills evaluations
+```
 
 ## Next Steps
 
-- **Deploy to production**: Follow the Kubernetes deployment guides in the repository
-- **Add more MCP servers**: Connect to additional MCP servers for more capabilities
-- **Build a UI**: Add the [UI Template](/templates/ui/) for a chat interface
-- **Join the community**: [GitHub Discussions](https://github.com/redhat-data-and-ai/website/discussions)
+- **Add a chat UI** — [UI Template Quick Start](/templates/ui/quick-start/)
+- **Deploy to OpenShift** — [Deployment Guide](/templates/agent/deployment/)
+- **Read the architecture** — [Architecture](/templates/agent/architecture/)
 
 {{< tip >}}
-**Pro Tip**: Start with simple, single-step agent workflows and gradually add complexity. Test each addition before moving to the next feature.
+Use `make mock-mcp` in a second terminal if you want a local MCP stub without cloning template-mcp-server. See `make local-with-mock` in the repository Makefile for the two-terminal workflow.
 {{< /tip >}}
 
 ## Troubleshooting
 
 **Agent won't start**
-- Check that MCP server URLs are correct and accessible
-- Verify your LLM API key is valid
-- Review logs for connection errors
+- Confirm `GOOGLE_APPLICATION_CREDENTIALS_CONTENT` is set in `.env`
+- Check port 5002 is free: `lsof -i :5002`
+- Ensure Podman is running and Postgres/Redis containers started
 
-**Tools not working**
-- Ensure MCP servers are running (`curl http://localhost:3000/health`)
-- Verify tool permissions and authentication
-- Check MCP server logs for errors
+**Database connection errors**
+- Wait for Postgres readiness ( `make local` does this automatically)
+- Run `make local-down` and retry `make local`
+
+**MCP tools not available**
+- Verify MCP server is running: `curl http://localhost:5001/health`
+- Check `config/agent/mcp.json` URL matches your run mode
+- Confirm the MCP name in subagent frontmatter exists in `mcp.json` with `enabled: true`
 
 For more help, visit [GitHub Issues](https://github.com/redhat-data-and-ai/template-agent/issues).
-

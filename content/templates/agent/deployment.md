@@ -1,173 +1,166 @@
 ---
 title: "Deployment Guide"
 weight: 10
-description: "Deploy your AI agent to Kubernetes with enterprise security, monitoring, and scaling."
+description: "Deploy the Deep Agent template with Podman Compose, OpenShift overlays, or Kind for production and local Kubernetes testing."
 ---
 
-This guide covers deploying your AI agent to production on Kubernetes, including configuration, monitoring, and scaling considerations.
+This guide covers deploying **template-agent** from local containers to OpenShift, including dependencies, secrets, and production hardening.
 
 ## Prerequisites
 
 Before deploying to production:
 
-- Kubernetes cluster access
-- Container registry access
-- MCP servers deployed and accessible
-- LLM API keys configured
-- Agent tested locally
+- Agent tested locally with `make local`
+- Google Vertex AI credentials (or configured vLLM/MaaS endpoint)
+- PostgreSQL and Redis available (managed services or cluster components)
+- MCP servers deployed and reachable from the agent namespace
+- Container registry access (OpenShift ImageStream or external registry)
 
-## Step 1: Build Container Image
+## Local container stack
 
-```bash
-# Build the agent container
-podman build -t your-registry/ai-agent:v1.0 .
-
-# Push to registry
-podman push your-registry/ai-agent:v1.0
-```
-
-## Step 2: Configure Secrets
-
-Create Kubernetes secrets for sensitive data:
+Run the full stack (Postgres, Redis, agent, optional Jaeger) in containers:
 
 ```bash
-# Create secret for LLM API key
-kubectl create secret generic agent-secrets \
-  --from-literal=llm-api-key=your-key-here \
-  --from-literal=mcp-server-token=your-token \
-  -n ai-agents
-
-# Create configmap for MCP server URLs
-kubectl create configmap agent-config \
-  --from-literal=mcp-servers=http://mcp-server.default.svc:3000/mcp \
-  -n ai-agents
+make container
 ```
 
-## Step 3: Deploy to Kubernetes
+- Agent: **http://localhost:5002**
+- Jaeger UI (if enabled): **http://localhost:16686**
 
-```yaml
-# deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ai-agent
-  namespace: ai-agents
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: ai-agent
-  template:
-    metadata:
-      labels:
-        app: ai-agent
-    spec:
-      containers:
-      - name: agent
-        image: your-registry/ai-agent:v1.0
-        env:
-        - name: LLM_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: agent-secrets
-              key: llm-api-key
-        - name: MCP_SERVERS
-          valueFrom:
-            configMapKeyRef:
-              name: agent-config
-              key: mcp-servers
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8000
-```
-
-Apply the deployment:
+Stop the stack:
 
 ```bash
-kubectl apply -f kubernetes/deployment.yaml
-kubectl apply -f kubernetes/service.yaml
+make container-down
 ```
 
-## Step 4: Monitoring
-
-### Health Checks
-
-Monitor agent health:
+For detached development with log tailing:
 
 ```bash
-# Check pod status
-kubectl get pods -n ai-agents
-
-# View logs
-kubectl logs -f deployment/ai-agent -n ai-agents
-
-# Check health endpoint
-kubectl port-forward svc/ai-agent 8000:8000 -n ai-agents
-curl http://localhost:8000/health
+make dev        # start stack in background, tail logs
+make dev-down   # stop stack
+make dev-clean  # stop and remove volumes
 ```
 
-### Metrics
+## Build the container image
 
-The template includes Prometheus metrics:
-
-- Request count and latency
-- MCP tool usage
-- LLM token consumption
-- Error rates
-
-## Step 5: Scaling
-
-### Horizontal Scaling
+The repository includes a `Containerfile` (Red Hat UBI-based). Build with Podman:
 
 ```bash
-# Scale manually
-kubectl scale deployment ai-agent --replicas=5 -n ai-agents
-
-# Or use HPA (Horizontal Pod Autoscaler)
-kubectl autoscale deployment ai-agent \
-  --cpu-percent=70 \
-  --min=2 \
-  --max=10 \
-  -n ai-agents
+podman build -t your-registry/template-agent:latest .
+podman push your-registry/template-agent:latest
 ```
 
-### Performance Tuning
+Or use the OpenShift `BuildConfig` in `deployment/overlays/openshift/buildconfig.yaml`.
 
-Adjust based on load:
+## OpenShift deployment
 
-- **Memory**: Increase for large context windows
-- **CPU**: Increase for CPU-intensive processing
-- **Replicas**: Scale based on request volume
+Manifests live in `deployment/overlays/openshift/` and include:
 
-## Security Considerations
+- Deployment, Service, Route
+- ImageStream and BuildConfig
+- ConfigMap and Secret patches
+- Redis component patch
+- HPA and PodDisruptionBudget
 
-- **API Keys**: Always use Kubernetes secrets
-- **Network Policies**: Restrict agent-to-MCP communication
-- **RBAC**: Limit service account permissions
-- **Audit Logging**: Enable for compliance
+Deploy with the repository Makefile:
+
+```bash
+make deploy openshift NAMESPACE=your-project
+```
+
+This applies Kustomize overlays, substitutes the namespace, and creates required secrets from your `.env` file.
+
+### Production configuration
+
+Set these before or during deployment:
+
+| Setting | Purpose |
+|---------|---------|
+| `GOOGLE_APPLICATION_CREDENTIALS_CONTENT` | Vertex AI credentials (Secret) |
+| `POSTGRES_*` | Managed or in-cluster PostgreSQL |
+| `REDIS_URL` | Managed or in-cluster Redis |
+| `AGENT_PUBLIC_BASE_URL` | Public HTTPS URL for OAuth MCP callbacks |
+| `ENABLE_AUTH` | Enable SSO/OIDC for authenticated access |
+| `LANGFUSE_*` | Optional tracing in production |
+| `SSL_KEYFILE` / `SSL_CERTFILE` | TLS termination (if not handled by Route) |
+| `MCP_TOKEN_ENCRYPTION_KEY` | Required for OAuth/DCR MCP in production |
+
+Reference values for GitOps/ArgoCD are in `config/agent/deployment/values.yaml`.
+
+### Health checks
+
+The agent exposes standard probes on port **5002**:
+
+```bash
+curl http://localhost:5002/health
+curl http://localhost:5002/readyz
+```
+
+OpenShift Route or Ingress should target the agent Service on this port.
+
+## Kind (local Kubernetes)
+
+For full-stack Kubernetes testing without OpenShift:
+
+```bash
+make kind
+```
+
+See `deployment/overlays/kind/README.md` in the repository for cluster setup details.
+
+## Custom CA certificates
+
+Corporate CA trust without rebuilding the image:
+
+**Compose** — set in `.env`:
+
+```bash
+CUSTOM_CA_FILE=./certs/ca.pem
+```
+
+**Kubernetes** — mount a Secret and set `CUSTOM_CA_PATH=/etc/custom-ca/ca.pem`
+
+**Standalone container** — set `CUSTOM_CA_URL` to download a PEM at startup.
+
+## Security considerations
+
+- **Secrets** — store credentials in OpenShift Secrets, not ConfigMaps
+- **Network policies** — restrict agent-to-MCP and agent-to-database traffic
+- **SSO** — enable `ENABLE_AUTH` and configure `SSO_*` for multi-user deployments
+- **MCP tokens** — use `MCP_TOKEN_ENCRYPTION_KEY` and rotate with `MCP_TOKEN_ENCRYPTION_KEY_PREVIOUS`
+- **Audit** — middleware emits scrubbed audit events; configure retention per your compliance requirements
+- **TLS** — terminate at Route/Ingress or configure `SSL_KEYFILE` and `SSL_CERTFILE`
+
+## Observability
+
+**Langfuse** — set `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and `LANGFUSE_BASE_URL` for trace and feedback correlation.
+
+**OpenTelemetry** — enable with `ENABLE_OTEL` and exporter endpoints. The `make container` target can start Jaeger for local trace inspection.
+
+**Token usage** — query `/threads/{thread_id}/token-usage` for per-conversation consumption.
+
+## Scaling
+
+The OpenShift overlay includes an **HPA** (Horizontal Pod Autoscaler) and **PDB** (Pod Disruption Budget). Tune CPU/memory requests in `deployment/overlays/openshift/deployment.yaml` based on model latency and context window size.
+
+Considerations:
+
+- **PostgreSQL** — shared checkpoint store; size connection pools for replica count
+- **Redis** — required for SSE broker and OAuth tokens; use a managed Redis service in production
+- **Memory** — increase limits for large context windows or multiple concurrent streams
+
+## Stack deployment order
+
+For a full AI Templates deployment:
+
+1. **template-mcp-server** — tools on `:5001` (or cluster Service)
+2. **template-agent** — Deep Agent on `:5002`
+3. **template-ui** — chat UI pointing `AGENT_HOST` or `settings.yaml` agent endpoint at the agent Route
 
 ## Next Steps
 
-- **Monitor performance**: Set up dashboards
-- **Configure alerts**: Get notified of issues
-- **Scale as needed**: Adjust resources based on usage
-- **Update regularly**: Deploy new versions safely
+- [Architecture](/templates/agent/architecture/) — config and API reference
+- [UI Deployment](/templates/ui/deployment/) — deploy the chat front end
+- [GitHub Issues](https://github.com/redhat-data-and-ai/template-agent/issues) — deployment questions
 
-For deployment questions, visit [GitHub Discussions](https://github.com/redhat-data-and-ai/website/discussions).
-
-
-
-
+For community discussion, visit [GitHub Discussions](https://github.com/redhat-data-and-ai/website/discussions).
