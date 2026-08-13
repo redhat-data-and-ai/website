@@ -4,7 +4,9 @@ weight: 20
 description: "How template-agent and template-ui load configuration at runtime without embedding prompts or branding in code."
 ---
 
-Both **template-agent** and **template-ui** separate **runtime behavior** from **application code**. Secrets stay in environment variables; operational and presentation settings load from config files at startup (with selective hot-reload on the UI).
+**template-agent** and **template-ui** separate **runtime behavior** from **application code**. Secrets stay in environment variables; operational and presentation settings load from config files at startup (with selective hot-reload on the UI).
+
+**template-mcp-server** uses **environment variables only** (Pydantic settings from `.env`) — no `config/agent/` tree. Tool implementations live under `template_mcp_server/src/tools/`.
 
 ## Philosophy
 
@@ -21,7 +23,7 @@ Both **template-agent** and **template-ui** separate **runtime behavior** from *
 config/agent/
 ├── PROMPT.md               # Orchestrator prompt + frontmatter
 ├── subagents/*.md          # Subagent definitions
-├── skills/*/               # Skill documents and evals
+├── skills/*/               # Skill documents (see Agent Skills spec)
 ├── mcp.json                # MCP server registry
 ├── runtime/agent.yaml      # Cache, memory, providers, middleware
 └── deployment/values.yaml  # GitOps reference values
@@ -33,8 +35,12 @@ Orchestrator and subagent files use YAML frontmatter for:
 
 - `model` — LLM model name or provider block
 - `tools` — built-in tool allow list
-- `skills` — skill documents to load
+- `skills` — skill documents to load (see [Agent Skills specification](https://agentskills.io/specification))
 - `mcps` — MCP server keys from `mcp.json`
+
+### Skills (`config/agent/skills/`)
+
+Each skill is a directory with a `SKILL.md` file following the [Agent Skills specification](https://agentskills.io/specification). Skills package domain workflows (prompts, references, scripts) that orchestrators and subagents invoke via frontmatter `skills:` lists. Evaluations live under `config/agent/skills/*/evals/`.
 
 ### What lives in `runtime/agent.yaml`
 
@@ -103,17 +109,29 @@ Branding and `agent.endpoint` reload without restart. Security settings (`rate_l
 Full reference: [UI Configuration](/templates/ui/configuration/).
 {{< /info >}}
 
+## template-mcp-server: `.env`
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MCP_HOST` | `localhost` | Bind address |
+| `MCP_PORT` | `5001` | Server port |
+| `MCP_TRANSPORT_PROTOCOL` | `http` | `http`, `sse`, or `streamable-http` |
+| `ENABLE_AUTH` | `False` in `.env.example` | OAuth resource server |
+| `POSTGRES_*` | compose defaults | OAuth token storage when auth enabled |
+
+See [template-mcp-server README](https://github.com/redhat-data-and-ai/template-mcp-server#configuration) and [Authentication guide](https://github.com/redhat-data-and-ai/template-mcp-server/blob/main/docs/authentication.md).
+
 ## Side-by-side comparison
 
-| Concern | template-agent | template-ui |
-|---------|----------------|-------------|
-| Prompts / routing | `PROMPT.md`, `subagents/` | N/A (proxies agent) |
-| Tools / MCP | `mcp.json` + frontmatter `mcps` | MCP status UI only |
-| Model selection | Frontmatter `model` | N/A |
-| Branding | N/A | `settings.yaml` `branding` |
-| Auth | `ENABLE_AUTH`, `SSO_*` | `AUTH_ENABLED`, `SSO_*`, `COOKIE_SIGN` |
-| Agent URL | N/A (is the agent) | `AGENT_HOST` / `agent.endpoint` |
-| Compliance | Guardrails, audit middleware | OPA `config/compliance/` |
+| Concern | template-agent | template-ui | template-mcp-server |
+|---------|----------------|-------------|---------------------|
+| Prompts / routing | `PROMPT.md`, `subagents/` | N/A (proxies agent) | N/A |
+| Tools / MCP | `mcp.json` + frontmatter `mcps` | MCP status UI only | Python tools in `src/tools/` |
+| Model selection | Frontmatter `model` | N/A | N/A |
+| Branding | N/A | `settings.yaml` `branding` | N/A |
+| Auth | `ENABLE_AUTH`, `SSO_*` | `AUTH_ENABLED`, `SSO_*`, `COOKIE_SIGN` | `ENABLE_AUTH`, `SSO_*`, `SESSION_SECRET` |
+| Agent URL | N/A (is the agent) | `AGENT_HOST` / `agent.endpoint` | N/A |
+| Compliance | Guardrails, audit middleware | OPA `config/compliance/` | Tool-level validation |
 
 ## GitOps and OpenShift
 

@@ -14,7 +14,7 @@ The agent process loads behavior from `config/agent/` at startup. Secrets and in
 config/agent/
 ├── PROMPT.md               # Orchestrator prompt + YAML frontmatter
 ├── subagents/              # Subagent definitions (.md files)
-├── skills/                 # Skill documents and evals
+├── skills/                 # Skill directories ([Agent Skills spec](https://agentskills.io/specification))
 ├── mcp.json                # MCP server registry
 ├── runtime/agent.yaml      # Cache, memory, providers, middleware
 └── deployment/values.yaml  # OpenShift/ArgoCD reference values
@@ -180,7 +180,17 @@ Default configuration uses **Google Vertex AI** (Gemini). The runtime also suppo
 - **vLLM / OpenAI-compatible** endpoints via `VLLM_BASE_URL`
 - **MaaS** (Models as a Service) for managed open-source models — set `provider: maas` in frontmatter
 
-See `config/agent/runtime/agent.yaml` and the repository README for provider configuration.
+See `config/agent/runtime/agent.yaml` and the [template-agent README](https://github.com/redhat-data-and-ai/template-agent) for provider configuration.
+
+## Upstream frameworks
+
+template-agent is built on:
+
+- [LangGraph Deep Agents](https://github.com/langchain-ai/deepagents) — orchestrator, subagents, and delegation patterns
+- [LangGraph](https://langchain-ai.github.io/langgraph/) — graph runtime, checkpoints, and LangGraph Platform API
+- [Agent Skills](https://agentskills.io/specification) — `SKILL.md` format for skills in `config/agent/skills/`
+
+For MCP tool protocols, see the [Model Context Protocol](https://modelcontextprotocol.io/) and [MCP Server Template](/templates/mcp-server/) docs.
 
 ## Next Steps
 

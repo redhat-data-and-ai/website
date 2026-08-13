@@ -16,7 +16,7 @@ The Agent Template is a production-ready foundation for building [Deep Agents](h
 This template gives you a complete Deep Agent runtime:
 
 - **Orchestrator + subagents** — delegate work across specialized agents (example domain: fitness assistant)
-- **Skills** — reusable workflow documents (`client-intake`, `bmi-report`, `email-formatter`)
+- **Skills** — reusable workflow documents (`client-intake`, `bmi-report`, `email-formatter`) following the [Agent Skills specification](https://agentskills.io/specification)
 - **Config-as-code** — prompts, subagents, MCP wiring, and runtime settings in `config/agent/`
 - **MCP integration** — SSO pass-through, OAuth, and Dynamic Client Registration (DCR)
 - **Enterprise infrastructure** — PostgreSQL checkpoints, Redis SSE broker, Langfuse tracing, OpenTelemetry metrics
@@ -118,6 +118,7 @@ Trace conversations with Langfuse, export OpenTelemetry metrics, and collect use
 
 - [MCP Server Template](/templates/mcp-server/) — tools for your agent to call
 - [UI Template](/templates/ui/) — chat interface for the LangGraph API
+- [Stack reference](/reference/architecture/) — ports, request flow, deployment patterns
 - [Config-as-code announcement](/news/config-as-code-architecture/) — how configuration is organized
 
 ## Next Steps

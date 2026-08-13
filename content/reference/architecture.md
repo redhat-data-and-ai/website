@@ -40,6 +40,11 @@ graph TD
 | UI Redis (compose) | **6380** | Session store |
 | Agent Redis (compose) | **6379** | SSE broker, OAuth tokens |
 | Agent Postgres | **5432** | Checkpoints, memory, feedback |
+| MCP Postgres (compose, auth enabled) | **5432** | OAuth token storage — host port conflicts with agent Postgres if both compose stacks run |
+
+{{< tip >}}
+**Local Postgres:** template-agent and template-mcp-server both map Postgres to host **5432** in their compose files. Run one database stack, point the other service at a shared instance, or change the host port mapping when running both composes on one machine.
+{{< /tip >}}
 
 ## Request flow
 
@@ -48,7 +53,7 @@ graph TD
 3. **template-agent** runs the LangGraph Deep Agent graph (assistant ID `agent`).
 4. The **orchestrator** may delegate to **subagents** and call **MCP tools** on template-mcp-server.
 5. **SSE streams** flow back through the BFF, which translates events for React (HITL, todos, artifacts, MCP status).
-6. **Checkpoints** and feedback persist in PostgreSQL; OAuth MCP tokens in Redis.
+6. **Checkpoints** and feedback persist in agent PostgreSQL; per-user MCP OAuth tokens from the agent flow live in agent Redis. When template-mcp-server auth is enabled, the MCP server stores its own OAuth tokens in PostgreSQL.
 
 ## Repository responsibilities
 
@@ -66,7 +71,8 @@ Each repo can be deployed independently but is designed to work together.
 |-------|-----------------|---------|
 | Agent behavior | `config/agent/` in template-agent | `.env` (DB, Vertex, Langfuse, SSO) |
 | UI branding and proxy | `config/ui/settings.yaml` in template-ui | `.env` (SSO, `COOKIE_SIGN`, `AGENT_HOST`) |
-| MCP servers | `config/agent/mcp.json` | Per-server auth in agent `.env` |
+| Agent → MCP wiring | `config/agent/mcp.json` in template-agent | Per-server auth in agent `.env` (`MCP_TOKEN_ENCRYPTION_KEY`, etc.) |
+| MCP server runtime | `.env` in template-mcp-server (Pydantic settings) | `SSO_*`, `SESSION_SECRET`, `POSTGRES_*` when `ENABLE_AUTH=True` |
 
 See [Config-as-code](/reference/config-as-code/) for details.
 
@@ -74,11 +80,14 @@ See [Config-as-code](/reference/config-as-code/) for details.
 
 | Pattern | Command / path |
 |---------|----------------|
+| Local MCP only | `make local` in template-mcp-server (`ENABLE_AUTH=False` in `.env`) |
 | Local agent only | `make local` in template-agent |
-| Local full stack | agent `make local` + MCP `make local` + UI `npm run dev` |
+| Local full stack | MCP `make local` + agent `make local` + UI `npm run dev` |
+| MCP containers | `make container` in template-mcp-server (server + Postgres) |
 | Agent containers | `make container` in template-agent |
 | UI + Redis compose | `compose.yml` in template-ui |
-| OpenShift | `deployment/overlays/openshift/` in each repo |
+| OpenShift MCP | `deployment/openshift/` in template-mcp-server |
+| OpenShift agent / UI | `deployment/overlays/openshift/` in template-agent and template-ui |
 | Kind | `make kind` (agent) / `deployment/overlays/kind/` (UI) |
 
 ## Related documentation

@@ -68,6 +68,7 @@ MCP servers are defined in `config/agent/mcp.json`. For local development with [
 # In a separate terminal
 git clone https://github.com/redhat-data-and-ai/template-mcp-server.git
 cd template-mcp-server
+make install
 make local
 curl http://localhost:5001/health
 ```
@@ -106,7 +107,7 @@ Most changes do not require Python edits:
 
 1. **Orchestrator prompt** — edit `config/agent/PROMPT.md`
 2. **Subagents** — add or modify files in `config/agent/subagents/`
-3. **Skills** — edit documents in `config/agent/skills/`
+3. **Skills** — edit documents in `config/agent/skills/` ([Agent Skills spec](https://agentskills.io/specification))
 4. **MCP servers** — update `config/agent/mcp.json`
 5. **Runtime settings** — adjust `config/agent/runtime/agent.yaml`
 

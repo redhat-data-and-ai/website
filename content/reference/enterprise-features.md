@@ -10,24 +10,24 @@ This matrix maps enterprise features to the repository that implements them. Use
 
 | Feature | template-agent | template-ui | template-mcp-server |
 |---------|----------------|-------------|---------------------|
-| **SSO / OIDC** | `ENABLE_AUTH`, `SSO_*` env | `AUTH_ENABLED`, `SSO_*`, sessions | MCP `auth` modes |
+| **SSO / OIDC** | `ENABLE_AUTH`, `SSO_*` env | `AUTH_ENABLED`, `SSO_*`, sessions | `ENABLE_AUTH`, `SSO_*`, `SESSION_SECRET` |
 | **Langfuse tracing** | `LANGFUSE_*` env | — | — |
-| **OpenTelemetry** | OTEL env, metrics endpoints | OTEL Fastify plugin | Varies by deployment |
+| **OpenTelemetry** | OTEL env, metrics endpoints | OTEL Fastify plugin | — (structlog JSON logging) |
 | **User feedback API** | `/feedback` routes | Feedback UI buttons | — |
-| **MCP SSO pass-through** | Forwards user Bearer token | — | Accepts agent token |
-| **MCP OAuth** | Per-user OAuth flow, Redis tokens | MCP connect UI | OAuth client |
-| **MCP DCR** | Dynamic client registration | MCP status panel | DCR support |
+| **MCP SSO pass-through** | Forwards user Bearer token | — | Bearer introspection on `tools/call` |
+| **MCP OAuth** | Per-user OAuth client flow, Redis tokens | MCP connect UI | OAuth authorization server (`/auth/*`), Postgres tokens |
+| **MCP DCR** | Registers OAuth client to MCP | MCP status panel | `POST /auth/register` |
 | **HITL interrupts** | Graph interrupt points | InterruptBanner UI | — |
 | **Guardrails** | Middleware in agent runtime | — | — |
 | **Audit logging** | Audit middleware + emitter | — | — |
 | **PII scrubbing** | Detector/scrubber middleware | — | — |
 | **OPA compliance** | — | `config/compliance/policy.rego` | — |
 | **Rate limiting** | — | `settings.yaml` security section | — |
-| **Session management** | Thread/checkpoint isolation | Redis + `COOKIE_SIGN` | — |
+| **Session management** | Thread/checkpoint isolation | Redis + `COOKIE_SIGN` | PostgreSQL OAuth token storage (when auth enabled) |
 | **Token budget** | `/threads/{id}/token-usage` | — | — |
 | **Personalization** | Memory/rules API (evolving) | Settings UI (memory, rules) | — |
-| **OpenShift overlays** | `deployment/overlays/openshift/` | `deployment/overlays/openshift/` | OpenShift manifests |
-| **HPA / PDB** | OpenShift overlay | — | Varies |
+| **OpenShift overlays** | `deployment/overlays/openshift/` | `deployment/overlays/openshift/` | `deployment/openshift/` |
+| **HPA / PDB** | OpenShift overlay | — | — |
 
 ## Authentication flows
 
@@ -41,15 +41,25 @@ template-ui uses OAuth2/OIDC with cookie-based sessions. Production requires `CO
 
 ### MCP authentication
 
-Defined per server in `config/agent/mcp.json`:
+**Agent side** — defined per server in `config/agent/mcp.json`:
 
 | `auth_mode` | Credential flow |
 |-------------|-----------------|
-| `sso` | Agent forwards user's SSO Bearer token |
-| `oauth` | User connects via UI; tokens encrypted in Redis |
-| `dcr` | Agent registers OAuth client dynamically per connect |
+| `sso` | Agent forwards user's SSO Bearer token to MCP |
+| `oauth` | User connects via UI; agent stores tokens encrypted in Redis |
+| `dcr` | Agent registers an OAuth client with MCP (`POST /auth/register`) |
 
-Requires `MCP_TOKEN_ENCRYPTION_KEY` for OAuth/DCR in production.
+Requires `MCP_TOKEN_ENCRYPTION_KEY` for OAuth/DCR on the agent in production.
+
+**MCP server side** — when `ENABLE_AUTH=True` on template-mcp-server:
+
+| Mode | `USE_EXTERNAL_BROWSER_AUTH` | Notes |
+|------|----------------------------|-------|
+| No auth | any (`ENABLE_AUTH=False`) | Default in `.env.example`; all endpoints open |
+| Local dev auth | `True` | Browser OAuth; token cached in memory |
+| Production auth | `False` | Full OAuth server; tokens in PostgreSQL |
+
+`tools/list` is unauthenticated so agents can discover tools; `tools/call` requires a valid Bearer token when auth is enabled. See [Authentication](https://github.com/redhat-data-and-ai/template-mcp-server/blob/main/docs/authentication.md) in template-mcp-server.
 
 ## Observability stack
 

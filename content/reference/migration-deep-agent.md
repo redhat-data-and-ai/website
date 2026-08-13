@@ -100,6 +100,7 @@ Use [template-ui](https://github.com/redhat-data-and-ai/template-ui) as the refe
 | UI overview + BFF | [/templates/ui/](/templates/ui/) |
 | Config reference | [/reference/config-as-code/](/reference/config-as-code/) |
 | Announcements | [/news/](/news/) |
+| Upstream frameworks | [Deep Agents](https://github.com/langchain-ai/deepagents), [LangGraph](https://langchain-ai.github.io/langgraph/), [Agent Skills](https://agentskills.io/specification) |
 
 ## Getting help
 
