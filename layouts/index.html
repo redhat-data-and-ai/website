@@ -45,9 +45,9 @@
                   <i class="fas fa-robot pf-u-mr-sm pf-u-color-blue-300"></i>
                   Agent Template
                 </h3>
-                <p class="pf-u-color-dark-200 pf-u-mb-md">Create LangGraph-based AI agents with enterprise security, observability, and production-ready deployment configs.</p>
+                <p class="pf-u-color-dark-200 pf-u-mb-md">Deep Agent orchestration with config-as-code, subagents, skills, MCP integration, and production deployment on OpenShift.</p>
                 <div class="pf-u-border-top pf-u-pt-md pf-u-mt-md">
-                  <a href="https://github.com/redhat-data-and-ai/template-agent" class="pf-c-button pf-m-link pf-m-inline">View on GitHub →</a>
+                  <a href="/templates/agent/" class="pf-c-button pf-m-link pf-m-inline">Learn more →</a>
                 </div>
               </div>
             </div>
@@ -61,9 +61,9 @@
                   <i class="fas fa-desktop pf-u-mr-sm pf-u-color-green-400"></i>
                   UI Template
                 </h3>
-                <p class="pf-u-color-dark-200 pf-u-mb-md">Deploy modern chat interfaces built with React and FastAPI that work seamlessly with our agent template.</p>
+                <p class="pf-u-color-dark-200 pf-u-mb-md">React chat UI for the Deep Agent streaming API with HITL, task progress, and runtime branding configuration.</p>
                 <div class="pf-u-border-top pf-u-pt-md pf-u-mt-md">
-                  <a href="https://github.com/redhat-data-and-ai/template-ui" class="pf-c-button pf-m-link pf-m-inline">View on GitHub →</a>
+                  <a href="/templates/ui/" class="pf-c-button pf-m-link pf-m-inline">Learn more →</a>
                 </div>
               </div>
             </div>
@@ -72,6 +72,35 @@
       </div>
     </div>
   </section>
+
+  <!-- Latest News -->
+  {{ $news := where .Site.RegularPages "Section" "news" }}
+  {{ if $news }}
+  <section class="pf-c-page__main-section pf-m-light">
+    <div class="pf-l-grid">
+      <div class="pf-l-grid__item pf-m-12-col-on-sm pf-m-10-col-on-md pf-m-offset-1-col-on-md pf-m-8-col-on-lg pf-m-offset-2-col-on-lg pf-u-py-xl">
+        <div class="pf-c-content">
+          <h2 class="pf-c-title pf-m-2xl pf-u-mb-md">Latest News</h2>
+          {{ range first 1 ($news.ByDate) }}
+          <div class="pf-c-card pf-u-p-lg">
+            <div class="pf-c-card__body">
+              <p class="pf-u-color-dark-200 pf-u-mb-sm">{{ .Date.Format "January 2, 2006" }}</p>
+              <h3 class="pf-c-title pf-m-lg pf-u-mb-sm">
+                <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+              </h3>
+              <p class="pf-u-mb-md">{{ .Description | default .Summary }}</p>
+              <a href="{{ .RelPermalink }}" class="pf-c-button pf-m-link pf-m-inline">Read more →</a>
+            </div>
+          </div>
+          {{ end }}
+          <p class="pf-u-mt-md">
+            <a href="/news/" class="pf-c-button pf-m-link pf-m-inline">All news →</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+  {{ end }}
 
   <!-- Call to Action -->
   <section class="pf-c-page__main-section" style="background: #f5f5f5; border-top: 4px solid #ee0000;">

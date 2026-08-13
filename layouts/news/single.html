@@ -1,0 +1,36 @@
+{{ define "main" }}
+  <div class="pf-c-page__sidebar">
+    <div class="pf-c-page__sidebar-body">
+      {{ partial "menu-news.html" . }}
+    </div>
+  </div>
+  <main class="pf-c-page__main" tabindex="0" data-bs-spy="scroll" data-bs-target="#TableOfContents" data-bs-offset="50">
+    <section class="pf-c-page__main-section pf-m-fill">
+      <div class="sidebar-toggle-container">
+        {{ partial "sidebar-toggle.html" . }}
+      </div>
+      <div class="pf-u-display-flex">
+        <div class="pf-c-content min-height">
+          <h1>{{ .Title }}</h1>
+          <p class="pf-u-color-dark-200">{{ .Date.Format "January 2, 2006" }}</p>
+          {{ if .Description }}
+          <p class="page-abstract">{{ .Description }}</p>
+          {{ end }}
+          {{ if .Params.tags }}
+          <div class="pf-u-mb-md">
+            {{ range .Params.tags }}
+            <span class="pf-c-label pf-m-grey pf-u-mr-sm">
+              <span class="pf-c-label__content">{{ . }}</span>
+            </span>
+            {{ end }}
+          </div>
+          {{ end }}
+          <hr class="pf-c-divider pf-u-mb-lg" />
+          {{ .Content }}
+        </div>
+        {{ partial "toc.html" . }}
+      </div>
+    </section>
+    {{ partial "footer.html" . }}
+  </main>
+{{ end }}

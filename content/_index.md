@@ -6,13 +6,17 @@ title: "AI Templates"
 
 Go beyond demos and proofs of concept. AI Templates deliver battle-tested, production-ready components for building AI applications on Kubernetes, following best practices.
 
+{{< info title="What's New" >}}
+**Deep Agent update (August 2026):** The Agent and UI templates have moved to [LangGraph Deep Agents](https://github.com/langchain-ai/deepagents). **template-agent** is now a config-as-code Deep Agent runtime (orchestrator, subagents, skills, MCP integration). **template-ui** has been updated to work with the new Deep Agent streaming API, including HITL interrupts, task progress, and markdown-first rendering. [Read the announcement →](/news/)
+{{< /info >}}
+
 ## What are AI Templates?
 
 AI Templates are reusable, modular components that accelerate your AI development journey. Each template is designed to work independently or as part of a complete AI application stack:
 
 - **[MCP Server Template](/templates/mcp-server/)** - Build Model Context Protocol servers that extend AI agent capabilities
-- **[Agent Template](/templates/agent/)** - Create LangGraph-based AI agents with enterprise security and observability
-- **[UI Template](/templates/ui/)** - Deploy modern chat interfaces that work seamlessly with our agent template
+- **[Agent Template](/templates/agent/)** - Deep Agent orchestration with config-as-code, subagents, skills, and enterprise observability
+- **[UI Template](/templates/ui/)** - React chat UI for the Deep Agent streaming API
 
 ## Why Use AI Templates?
 
@@ -38,7 +42,7 @@ Deploy anywhere - OpenShift, EKS, GKE, or any Kubernetes cluster.
 
 {{< mermaid >}}
 graph TD
-    A[User Interface<br/>template-ui] --> B[AI Agent Layer<br/>template-agent]
+    A[User Interface<br/>template-ui BFF] --> B[AI Deep Agent Layer<br/>template-agent]
     B --> C[MCP Server<br/>template-mcp-server]
     C --> D[External Systems<br/>Databases, APIs, Services]
 

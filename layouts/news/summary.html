@@ -1,0 +1,19 @@
+<div class="pf-c-card pf-u-p-lg pf-u-mb-md">
+  <div class="pf-c-card__body">
+    <p class="pf-u-color-dark-200 pf-u-mb-sm">{{ .Date.Format "January 2, 2006" }}</p>
+    <h2 class="pf-c-title pf-m-lg pf-u-mb-sm">
+      <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+    </h2>
+    <p class="pf-u-mb-md">{{ .Description | default .Summary }}</p>
+    {{ if .Params.tags }}
+    <div class="pf-u-mb-sm">
+      {{ range .Params.tags }}
+      <span class="pf-c-label pf-m-grey pf-u-mr-sm">
+        <span class="pf-c-label__content">{{ . }}</span>
+      </span>
+      {{ end }}
+    </div>
+    {{ end }}
+    <a href="{{ .RelPermalink }}" class="pf-c-button pf-m-link pf-m-inline">Read more →</a>
+  </div>
+</div>
