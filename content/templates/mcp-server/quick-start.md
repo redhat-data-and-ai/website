@@ -72,42 +72,15 @@ git clone https://github.com/redhat-data-and-ai/template-mcp-server.git
 
 ## Step 3: Transform for Your Domain
 
-Transform the template to your specific domain. You can use the transformation script or follow manual steps:
+After you have run the server once (see [Quick run](#quick-run-template-as-is)), rename the template for your project. The upstream repository documents a **[rename checklist](https://github.com/redhat-data-and-ai/template-mcp-server#rename-checklist)** — there is no `scripts/transform-template.sh` in the template.
 
 {{< tip >}}
-**Quick Option**: Use the transformation script for fast setup.  
-**📚 Learning Option**: Follow the manual steps to understand the process.
-
-We recommend the script for speed, then review the manual steps to understand what happened.
+**Recommended:** Follow the rename checklist in the template README, then run `make install` and `make local` in your renamed project.
 {{< /tip >}}
 
-### Option A: Use Transformation Script (Recommended)
+### Manual transformation
 
-The template includes a transformation script that handles all the renaming automatically:
-
-```bash
-# 1. Navigate to the template
-cd template-mcp-server
-
-# 2. Run the transformation script
-./scripts/transform-template.sh "$NEW_PROJECT_NAME"
-
-# 3. Move into your new project
-cd "../$NEW_PROJECT_NAME"
-
-# 4. Set up development environment  
-uv venv --python 3.12
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# 5. Install dependencies
-uv pip install -e ".[dev]"
-```
-
-### Option B: Manual Transformation (Learning)
-
-If you want to understand each step, here's the manual process:
-
-**Step 1: Create Project Structure**
+**Step 1: Create project structure**
 
 ```bash
 # 1. Copy template to new project directory
@@ -119,46 +92,46 @@ NEW_SRC_NAME=$(echo "$NEW_PROJECT_NAME" | sed 's/-/_/g')
 mv template_mcp_server "$NEW_SRC_NAME"
 ```
 
-**Step 2: Update Package References**
+**Step 2: Update package references**
 
 ```bash
 # 3. Update all Python imports and references
-find . -name "*.py" -exec sed -i "s/template_mcp_server/$NEW_SRC_NAME/g" {} \;
+find . -name "*.py" -exec sed -i '' "s/template_mcp_server/$NEW_SRC_NAME/g" {} \;
 
 # 4. Update configuration files
-find . -name "*.toml" -exec sed -i "s/template_mcp_server/$NEW_SRC_NAME/g" {} \;
-find . -name "*.toml" -exec sed -i "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
+find . -name "*.toml" -exec sed -i '' "s/template_mcp_server/$NEW_SRC_NAME/g" {} \;
+find . -name "*.toml" -exec sed -i '' "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
 
-# 5. Update YAML/container configs  
-find . -name "*.yaml" -exec sed -i "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
-find . -name "*.yml" -exec sed -i "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
-find . -name "Containerfile*" -exec sed -i "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
+# 5. Update YAML/container configs
+find . -name "*.yaml" -exec sed -i '' "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
+find . -name "*.yml" -exec sed -i '' "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
+find . -name "Containerfile*" -exec sed -i '' "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
 ```
 
-**Step 3: Update Documentation**
+On Linux, omit the `''` after `-i` in `sed -i` commands.
+
+**Step 3: Update documentation**
 
 ```bash
 # 6. Update documentation files
-find . -name "*.md" -exec sed -i "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
-find . -name "*.md" -exec sed -i "s/template_mcp_server/$NEW_SRC_NAME/g" {} \;
+find . -name "*.md" -exec sed -i '' "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
+find . -name "*.md" -exec sed -i '' "s/template_mcp_server/$NEW_SRC_NAME/g" {} \;
 
 # 7. Update any remaining references
-find . -name "*.txt" -exec sed -i "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
+find . -name "*.txt" -exec sed -i '' "s/template-mcp-server/$NEW_PROJECT_NAME/g" {} \;
 ```
 
-**Step 4: Verify Transformation**
+**Step 4: Verify and install**
 
 ```bash
 # 8. Check that all references were updated correctly
-grep -r "template_mcp_server" . --exclude-dir=.git || echo "✅ All Python refs updated"
-grep -r "template-mcp-server" . --exclude-dir=.git || echo "✅ All project refs updated"
+grep -r "template_mcp_server" . --exclude-dir=.git || echo "All Python refs updated"
+grep -r "template-mcp-server" . --exclude-dir=.git || echo "All project refs updated"
 
-# 9. Set up development environment
-uv venv --python 3.12
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# 10. Install dependencies and verify
-uv pip install -e ".[dev]"
+# 9. Install and run
+make install
+make local
+curl http://localhost:5001/health
 ```
 
 ### Why Two Naming Formats?
@@ -197,7 +170,7 @@ template_mcp_server/           # Your Python package (gets renamed)
     ├── tools/                 # Your MCP functionality lives here
     │   ├── multiply_tool.py   # Mathematical operations
     │   ├── code_review_tool.py # Code analysis
-    │   └── logo_tool.py # Asset access
+    │   └── redhat_logo_tool.py # Asset access
     ├── assets/                # Static files accessed by tools
     ├── main.py                # FastAPI application entry point
     ├── mcp.py                 # MCP server implementation
@@ -347,7 +320,7 @@ def _register_mcp_tools(self) -> None:
     """Register all MCP tools."""
     self.mcp.tool()(multiply_numbers)
     self.mcp.tool()(generate_code_review_prompt)
-    self.mcp.tool()(get_logo)
+    self.mcp.tool()(get_redhat_logo)
     self.mcp.tool()(create_new_entity_id)  # Add your tool here
 ```
 
@@ -378,11 +351,14 @@ You can test your tool directly:
 
 ```python
 # Quick test script
+import asyncio
 from template_mcp_server.src.tools.entity_creation_tool import create_new_entity_id
 
-# Test your tool
-result = create_new_entity_id("customer", "CRM_SYSTEM", {"company": "Acme Corp"})
-print(result)
+async def main():
+    result = await create_new_entity_id("customer", "CRM_SYSTEM", {"company": "Acme Corp"})
+    print(result)
+
+asyncio.run(main())
 ```
 
 ## Step 8: Clean Up Template Example Tools
@@ -395,7 +371,7 @@ Now that you have your first domain-specific tool working, remove the template e
 # Remove template example tools
 rm template_mcp_server/src/tools/multiply_tool.py
 rm template_mcp_server/src/tools/code_review_tool.py
-rm template_mcp_server/src/tools/logo_tool.py
+rm template_mcp_server/src/tools/redhat_logo_tool.py
 ```
 
 ### Remove Tool Registrations
@@ -406,14 +382,14 @@ Edit `template_mcp_server/src/mcp.py` and remove the imports and registrations:
 # Remove these imports from the top of the file
 # from template_mcp_server.src.tools.multiply_tool import multiply_numbers
 # from template_mcp_server.src.tools.code_review_tool import generate_code_review_prompt  
-# from template_mcp_server.src.tools.logo_tool import get_logo
+# from template_mcp_server.src.tools.redhat_logo_tool import get_redhat_logo
 
 # In the _register_mcp_tools method, remove these lines:
 def _register_mcp_tools(self) -> None:
     """Register all MCP tools."""
     # self.mcp.tool()(multiply_numbers)                    # ❌ Remove this
     # self.mcp.tool()(generate_code_review_prompt)         # ❌ Remove this  
-    # self.mcp.tool()(get_logo)                     # ❌ Remove this
+    # self.mcp.tool()(get_redhat_logo)                     # ❌ Remove this
     self.mcp.tool()(create_new_entity_id)                  # ✅ Keep your tool
 ```
 

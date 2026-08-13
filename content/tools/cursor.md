@@ -105,7 +105,7 @@ Model Context Protocol (MCP) allows Cursor to connect to specialized servers tha
 {
   "mcpServers": {
     "my-http-mcp-server": {
-      "url": "http://localhost:3000/mcp",
+      "url": "http://localhost:5001/mcp",
       "transport": "http"
     }
   }
@@ -216,7 +216,7 @@ Cursor will:
 **Symptoms**: Tools don't appear, connection errors
 
 **Solutions**:
-- Verify MCP server is running (`curl http://localhost:3000/health`)
+- Verify MCP server is running (`curl http://localhost:5001/health`)
 - Check Cursor MCP settings for correct URL/command
 - Review MCP server logs for errors
 - Restart Cursor after configuration changes

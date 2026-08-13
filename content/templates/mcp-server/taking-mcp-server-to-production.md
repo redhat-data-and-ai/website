@@ -105,11 +105,11 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 3000
+            port: 5001
         readinessProbe:
           httpGet:
             path: /health
-            port: 3000
+            port: 5001
 ```
 
 ### Production Features
@@ -137,13 +137,16 @@ Implement comprehensive monitoring:
    podman push your-registry/mcp-server:v1.0
    ```
 
-2. **Apply Kubernetes manifests**
+2. **Deploy to OpenShift** (manifests in `deployment/openshift/`)
+
    ```bash
-   kubectl apply -f kubernetes/namespace.yaml
-   kubectl apply -f kubernetes/configmap.yaml
-   kubectl apply -f kubernetes/secret.yaml
-   kubectl apply -f kubernetes/deployment.yaml
-   kubectl apply -f kubernetes/service.yaml
+   make deploy openshift NAMESPACE=your-project
+   ```
+
+   Or apply Kustomize directly:
+
+   ```bash
+   oc apply -k deployment/openshift/
    ```
 
 3. **Verify deployment**

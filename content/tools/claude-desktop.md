@@ -79,7 +79,7 @@ Edit the configuration file:
 {
   "mcpServers": {
     "my-http-server": {
-      "url": "http://localhost:3000/mcp",
+      "url": "http://localhost:5001/mcp",
       "transport": "http"
     }
   }
@@ -137,7 +137,7 @@ Claude should list the tools from your connected MCP servers.
 **Symptoms**: No tools available, connection errors
 
 **Solutions:**
-- Verify MCP server is running (`curl http://localhost:3000/health`)
+- Verify MCP server is running (`curl http://localhost:5001/health`)
 - Check configuration file path is correct
 - Review server logs for connection attempts
 - Restart Claude Desktop completely
@@ -194,13 +194,13 @@ Connect to multiple MCP servers simultaneously:
 {
   "mcpServers": {
     "database-server": {
-      "url": "http://localhost:3000/mcp"
+      "url": "http://localhost:5001/mcp"
     },
     "file-server": {
-      "url": "http://localhost:3001/mcp"
+      "url": "http://localhost:5002/mcp"
     },
     "api-server": {
-      "url": "http://localhost:3002/mcp"
+      "url": "http://localhost:5003/mcp"
     }
   }
 }
