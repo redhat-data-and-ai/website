@@ -4,7 +4,7 @@ weight: 6
 description: "A comprehensive exploration of the enterprise MCP template architecture, directory structure, and design decisions including FastAPI vs FastMCP, containerization, and testing strategies."
 ---
 
-This deep dive explores the enterprise MCP template's architecture, walking through each directory and file to understand the design decisions that make it production-ready. You'll learn why we chose FastAPI over FastMCP, how the modular structure supports enterprise deployments, and the reasoning behind each component.
+This deep dive explores the enterprise MCP template's architecture, walking through each directory and file to understand the design decisions that make it production-ready. You'll learn how **FastAPI and FastMCP work together**, how the modular structure supports enterprise deployments, and the reasoning behind each component.
 
 ## Template Structure Overview
 
@@ -17,15 +17,15 @@ template-mcp-server/
 │   │   ├── api.py                   # FastAPI application
 │   │   ├── mcp.py                   # MCP server integration
 │   │   ├── settings.py              # Configuration management
-│   │   ├── tools/                   # MCP tools (tools-first architecture)
-│   │   │   ├── multiply_tool.py    # Example CPU-bound tool
-│   │   │   ├── code_review_tool.py # Example I/O-bound tool
-│   │   │   └── logo_tool.py        # Example resource-as-tool
-│   │   └── utils/
-│   │       └── pylogger.py          # Structured logging
+│   │   └── tools/                   # MCP tools (tools-first architecture)
+│   │       ├── multiply_tool.py    # Example CPU-bound tool
+│   │       ├── code_review_tool.py # Example I/O-bound tool
+│   │       └── redhat_logo_tool.py # Example resource-as-tool
+│   └── utils/
+│       └── pylogger.py              # Structured logging
+├── deployment/openshift/            # OpenShift / Kustomize manifests
 ├── tests/                           # Comprehensive test suite
 ├── examples/                        # Usage examples
-├── kubernetes/                      # Kubernetes deployment configs
 ├── pyproject.toml                   # Python project configuration
 ├── Containerfile                    # Container build instructions
 └── README.md
@@ -39,28 +39,25 @@ This template implements a "tools-first" architecture where **all functionality*
 
 ## Key Architectural Decisions
 
-### FastAPI vs FastMCP: Why FastAPI?
+### FastAPI + FastMCP: Why both?
 
-The template uses **FastAPI** instead of the simpler **FastMCP** framework for several enterprise reasons:
+The template uses **FastAPI** as the HTTP application layer and **FastMCP** for MCP protocol handling. They are complementary, not alternatives:
 
-#### FastAPI Advantages
+#### Combined stack
 
-- **Production Scale**: Handles thousands of concurrent connections with async/await
-- **Enterprise Security**: Built-in OAuth2, JWT, CORS, rate limiting, input validation
-- **Transport Flexibility**: Native support for HTTP, WebSockets, Server-Sent Events (SSE)
-- **API Documentation**: Automatic OpenAPI/Swagger documentation generation
-- **Ecosystem Integration**: Works with enterprise tools like Prometheus, Jaeger, etc.
-- **Type Safety**: Full Python type hints with runtime validation via Pydantic
-- **Testing Framework**: Comprehensive testing tools with dependency injection
+- **FastAPI** — health checks, OAuth routes, middleware, OpenAPI docs, production HTTP serving
+- **FastMCP** — MCP tool registration, JSON-RPC `/mcp` endpoint, transport integration
+- **Production scale** — async/await for concurrent connections
+- **Enterprise security** — OAuth2, CORS, rate limiting, input validation via FastAPI middleware
+- **Transport flexibility** — HTTP, SSE, and streamable-HTTP (`MCP_TRANSPORT_PROTOCOL`)
+- **Type safety** — Pydantic settings and tool schemas
 
-#### FastMCP Trade-offs
+#### FastMCP alone
 
-- **Simplicity**: FastMCP is simpler for basic MCP servers
-- **MCP Focus**: More opinionated about MCP patterns
-- **Enterprise Features**: Fewer built-in enterprise integrations
+FastMCP is simpler for minimal MCP servers but offers fewer built-in enterprise HTTP and auth integrations. This template wraps FastMCP inside FastAPI for production deployments.
 
 ```python
-# FastAPI approach (template uses this)
+# FastAPI + FastMCP (template uses both)
 from fastapi import FastAPI
 from fastmcp import FastMCP
 
@@ -118,7 +115,7 @@ graph TD
 
     I --> L["multiply()<br/>(def)"]
     J --> M["code_review()<br/>(async def)"]
-    K --> N["get_logo()<br/>(async def)"]
+    K --> N["get_redhat_logo()<br/>(async def)"]
 
     style G fill:#e1f5fe
     style H fill:#f3e5f5
@@ -204,7 +201,7 @@ def test_container_startup_and_health(self):
     """Test that container starts and responds to HTTP requests."""
     build_cmd = ["podman", "build", "-t", image_name, "."]
     run_cmd = ["podman", "run", "-d", "--name", container_name,
-               "-p", "3001:3000", image_name]
+               "-p", "5001:5001", image_name]
 
     # Build, run, test, cleanup
     assert build_result.returncode == 0

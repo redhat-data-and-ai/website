@@ -15,147 +15,47 @@ This guide provides comprehensive best practices for developing production-ready
 
 ## Agent Development Best Practices
 
-### 1. Code Organization & Structure
+The [template-agent](/templates/agent/) Deep Agent template uses **config-as-code** and the Aegra LangGraph API — not a monolithic `ask_agent/` Python package. For agent setup, see:
 
-#### Project Structure
+- [Agent Quick Start](/templates/agent/quick-start/) — `make install`, `make local`, port **5002**
+- [Agent Architecture](/templates/agent/architecture/) — `config/agent/` layout, MCP wiring, API reference
+- [Config-as-code](/reference/config-as-code/) — prompts, subagents, skills, `mcp.json`
+
+### Configuration (config-as-code)
+
+Agent behavior lives in files under `config/agent/`, not in `src/agent/*.py`:
 
 ```text
-ask-agent/
-├── ask_agent/
-│   └── src/
-│       ├── __init__.py
-│       ├── main.py             # Main agent entry point
-│       ├── agent/
-│       │   ├── __init__.py
-│       │   ├── workflows.py    # LangGraph workflows
-│       │   ├── tools.py       # Tool integrations
-│       │   └── prompts.py     # Prompt templates
-│       ├── config/
-│       │   ├── __init__.py
-│       │   └── settings.py    # Configuration management
-│       └── utils/
-│           ├── __init__.py
-│           ├── mcp_client.py  # MCP client utilities
-│           └── formatting.py # Response formatting
-├── tests/                      # Comprehensive test suite
-├── examples/                   # Usage examples
-├── pyproject.toml             # Modern Python project configuration
-├── .env.template              # Environment variables template
-├── Containerfile              # Container build instructions
-└── README.md
+config/agent/
+├── PROMPT.md               # Orchestrator prompt + frontmatter
+├── subagents/*.md          # Subagent definitions
+├── skills/*/SKILL.md       # Agent Skills workflows
+├── mcp.json                # MCP servers (default local URL: http://localhost:5001/mcp)
+└── runtime/agent.yaml      # Middleware, memory, providers
 ```
 
-{{< tip >}}
-**Nested Structure**: Like MCP servers, agents benefit from nested package structure (`ask_agent/src/`) for container isolation and deployment benefits.
-{{< /tip >}}
+Wire MCP servers in `mcp.json` and reference them from orchestrator/subagent frontmatter (`mcps:`). Secrets (Vertex AI, Postgres, Redis, Langfuse) stay in `.env`.
 
-#### Configuration Management
+### LangGraph API testing
 
-```python
-# config/settings.py
-from pydantic_settings import BaseSettings
-from typing import List
+Test the running agent with the LangGraph HTTP API:
 
-class AgentSettings(BaseSettings):
-    """Agent configuration with validation."""
+```bash
+curl -X POST http://localhost:5002/threads -H "Content-Type: application/json" -d '{}'
 
-    # MCP Server Endpoints
-    MCP_SERVERS: List[str] = [
-        "http://localhost:8001",
-        "http://localhost:8002",
-    ]
-
-    # LLM Configuration
-    LLM_MODEL: str = "gpt-4"
-    LLM_TEMPERATURE: float = 0.7
-    MAX_TOKENS: int = 4000
-
-    # Agent Configuration
-    AGENT_NAME: str = "AI Agent"
-    MAX_ITERATIONS: int = 10
-    TIMEOUT_SECONDS: int = 30
-
-    # Logging
-    LOG_LEVEL: str = "INFO"
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+curl -N -X POST "http://localhost:5002/threads/THREAD_ID/runs/stream" \
+  -H "Content-Type: application/json" \
+  -d '{"assistant_id": "agent", "input": {"messages": [{"role": "human", "content": "Hello"}]}, "stream_mode": "updates"}'
 ```
 
-### 2. LangGraph Workflow Design
-
-#### State Management
-
-```python
-# agent/workflows.py
-from typing import TypedDict, List, Optional
-from langgraph import StateGraph, START, END
-
-class AgentState(TypedDict):
-    """Agent state with proper typing."""
-    messages: List[dict]
-    current_task: Optional[str]
-    tools_used: List[str]
-    iterations: int
-    context: dict
-    final_answer: Optional[str]
-
-def create_agent_workflow() -> StateGraph:
-    """Create a well-structured agent workflow."""
-    workflow = StateGraph(AgentState)
-
-    # Add nodes with clear responsibilities
-    workflow.add_node("planner", plan_task)
-    workflow.add_node("executor", execute_task)
-    workflow.add_node("validator", validate_result)
-    workflow.add_node("formatter", format_response)
-
-    # Define clear flow with conditional logic
-    workflow.add_edge(START, "planner")
-    workflow.add_conditional_edges(
-        "planner",
-        should_execute,
-        {"execute": "executor", "end": "formatter"}
-    )
-    
-    return workflow.compile()
-```
-
-### 3. Testing & Quality Assurance
-
-```python
-# tests/test_workflows.py
-import pytest
-from agent.workflows import create_agent_workflow, AgentState
-
-@pytest.fixture
-def sample_state():
-    return AgentState(
-        messages=[{"role": "user", "content": "Analyze data"}],
-        current_task=None,
-        tools_used=[],
-        iterations=0,
-        context={},
-        final_answer=None
-    )
-
-@pytest.mark.asyncio
-async def test_workflow_execution(sample_state):
-    """Test complete workflow execution."""
-    workflow = create_agent_workflow()
-    result = await workflow.ainvoke(sample_state)
-    
-    assert result["final_answer"] is not None
-    assert result["iterations"] > 0
-```
+For workflow and middleware customization beyond config files, see `deep_agent/` in the template repository and [Agent Architecture](/templates/agent/architecture/).
 
 ---
 
 ## MCP Server Development Best Practices
 
 {{< info >}}
-**Architecture First**: For comprehensive guidance on MCP server architecture decisions (FastAPI vs FastMCP, nested package structure, async patterns), see the Enterprise MCP Template documentation.
+**Architecture First**: For MCP server structure (FastAPI + FastMCP, nested package layout, async patterns), see the [Enterprise MCP Template](/templates/mcp-server/enterprise-mcp-template/) documentation.
 {{< /info >}}
 
 ### 1. Configuration Management
@@ -171,9 +71,9 @@ class ServerSettings(BaseSettings):
     EXTERNAL_API_URL: str
     EXTERNAL_API_KEY: str
 
-    # Server configuration
-    HOST: str = "localhost"
-    PORT: int = 8001
+    # Server configuration (see template .env.example)
+    MCP_HOST: str = "localhost"
+    MCP_PORT: int = 5001
     LOG_LEVEL: str = "INFO"
 
     # Performance settings

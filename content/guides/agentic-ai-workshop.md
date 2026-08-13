@@ -300,7 +300,7 @@ def get_sales_data(territory: str, quarter: str):
 **2. Register the tool** in `template_mcp_server/src/mcp.py`:
 
 ```python
-# Add the import at the top
+# Add imports at the top
 from template_mcp_server.src.tools.my_tool import get_sales_data
 
 # In the _register_mcp_tools method, add your tool:
@@ -308,7 +308,7 @@ def _register_mcp_tools(self) -> None:
     """Register all MCP tools."""
     self.mcp.tool()(multiply_numbers)
     self.mcp.tool()(generate_code_review_prompt)
-    self.mcp.tool()(get_logo)
+    self.mcp.tool()(get_redhat_logo)
     self.mcp.tool()(get_sales_data)  # Add your new tool here
 ```
 

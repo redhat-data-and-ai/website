@@ -90,7 +90,7 @@ Open **http://localhost:5173**. Ensure [template-agent](/templates/agent/quick-s
 
 ## Technology Stack
 
-**Frontend:** React 19, TypeScript, Vite, Tailwind CSS, Radix UI, React Markdown
+**Frontend:** React 19, TypeScript, Vite, PatternFly 6, Tailwind CSS, React Markdown
 
 **Backend (BFF):** Fastify, TypeScript, OAuth2/SSO, Redis session store, OPA compliance plugin
 
