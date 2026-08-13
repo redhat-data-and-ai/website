@@ -98,6 +98,7 @@ Open **http://localhost:5173**. Ensure [template-agent](/templates/agent/quick-s
 
 - [Agent Template](/templates/agent/) — Deep Agent runtime the UI connects to
 - [MCP Server Template](/templates/mcp-server/) — tools used by the agent
+- [Stack reference](/reference/architecture/) — full-stack ports and BFF request flow
 - [template-ui update announcement](/news/template-ui-deep-agent-update/)
 
 ## Next Steps

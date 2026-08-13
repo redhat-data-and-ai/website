@@ -4,6 +4,35 @@ All notable changes to the AI Templates documentation site will be documented in
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.0] - 2026-08-12
+
+### Added
+
+**Deep Agent stack documentation (August 2026)**
+
+- Homepage "What's New" block and updated template cards for Deep Agent merge
+- **News** section with layouts and three launch posts (Deep Agent merge, config-as-code, template-ui BFF update)
+- **Reference** section: stack architecture, config-as-code, enterprise features matrix, migration guide
+- Agent template: rewritten docs + new [Architecture](/templates/agent/architecture/) page
+- UI template: rewritten docs + new [Configuration](/templates/ui/configuration/) page (BFF explained)
+- MCP template quick-start: `make install` / `make local` workflow and port **5001**
+- External resource links (LangGraph, Deep Agents, Agent Skills, MCP, Langfuse) on reference hub
+
+### Changed
+
+- **Agent template docs** — Deep Agents + Aegra, `config/agent/`, LangGraph API on port 5002, Postgres/Redis prerequisites
+- **UI template docs** — Fastify BFF, `config/ui/settings.yaml`, `AGENT_HOST`, unified `npm run dev` workflow
+- **Guides** — [Agentic AI Workshop](/guides/agentic-ai-workshop/) updated for Deep Agent stack (MCP `make install`, `mcp.json`, LangGraph API, BFF)
+- **Reference tables** — aligned with template-mcp-server (OAuth server role, `deployment/openshift/`, MCP Postgres port note)
+- Figure caption styling for architecture diagrams (`.figure-caption` in custom CSS)
+
+### Documentation
+
+- Cross-links between templates, reference, news, and workshop guide
+- Navigation: News menu item (weight 45)
+
+---
+
 ## [1.0.0] - 2025-11-05
 
 ### Added
@@ -56,11 +85,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Track upcoming changes and enhancements here as the project evolves.
 
-### Planned for v1.1
-- Expand Guides section with tutorials
-- Add Reference section with API docs
+### Planned for v1.2
 - Complete Contribute section placeholders
 - Additional tool integrations
+- **MCP template quick-start** — `make install` / `make local` on port 5001
+
+### Completed in v1.1
+- Guides section workshop (agentic-ai-workshop)
+- Reference section (architecture, config, enterprise, migration)
+- News section
 
 ### Under Consideration
 

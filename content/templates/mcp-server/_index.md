@@ -161,8 +161,9 @@ Ready to build your first MCP server? Choose your path:
 
 - **[Get started in minutes](quick-start)** with the tools-first template
 - **[Learn fundamentals](enterprise-mcp-template)** with the comprehensive template documentation
-- **[Deploy at scale](quick-start)** using enterprise template patterns
-- **[Take to production](taking-mcp-server-to-production/)** with Kubernetes deployment
+- **[Deploy at scale](taking-mcp-server-to-production/)** using OpenShift manifests
+- **[Stack reference](/reference/architecture/)** — how MCP fits with agent and UI on ports 5001 → 5002 → 5173
+- **[Agentic AI Workshop](/guides/agentic-ai-workshop/)** — run all three templates together
 
 For questions and support, visit our [GitHub Discussions](https://github.com/redhat-data-and-ai/website/discussions).
 
